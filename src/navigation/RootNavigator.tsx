@@ -2,10 +2,11 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import DashboardScreen from '../screens/DashboardScreen';
-import ECGInputScreen from '../screens/ECGInputScreen';
 import InferenceScreen from '../screens/InferenceScreen';
 import PerformanceScreen from '../screens/PerformanceScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+
+import ECGStackNavigator from './ECGStackNavigator';
 
 const Tab = createBottomTabNavigator();
 
@@ -20,7 +21,10 @@ export default function RootNavigator() {
 
         <Tab.Screen
           name="ECG"
-          component={ECGInputScreen}
+          component={ECGStackNavigator}
+          options={{
+            headerShown: false,
+          }}
         />
 
         <Tab.Screen

@@ -1,9 +1,47 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 
 import InfoRow from '../components/InfoRow';
 import SectionCard from '../components/SectionCard';
 
+const records = ['100', '101', '102', '103', '104', '105'];
+
+type InputSource = 'sample' | 'upload';
+
 export default function ECGInputScreen() {
+  const navigation = useNavigation<any>();
+
+  const [recordIndex, setRecordIndex] = useState(0);
+  const [inputSource, setInputSource] = useState<InputSource>('sample');
+
+  const currentRecord = records[recordIndex];
+
+  const previousRecord = () => {
+    setRecordIndex((current) =>
+      current === 0 ? records.length - 1 : current - 1,
+    );
+  };
+
+  const nextRecord = () => {
+    setRecordIndex((current) =>
+      current === records.length - 1 ? 0 : current + 1,
+    );
+  };
+
+  const loadECG = () => {
+    navigation.navigate('ECGViewer', {
+      recordId: currentRecord,
+      inputSource,
+    });
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -30,16 +68,26 @@ export default function ECGInputScreen() {
         <Text style={styles.fieldLabel}>Selected Record</Text>
 
         <View style={styles.recordSelector}>
-          <Pressable style={styles.arrowButton}>
+          <Pressable
+            style={styles.arrowButton}
+            onPress={previousRecord}
+          >
             <Text style={styles.arrowText}>‹</Text>
           </Pressable>
 
           <View style={styles.recordBox}>
-            <Text style={styles.recordValue}>100</Text>
-            <Text style={styles.recordLabel}>Record ID</Text>
+            <Text style={styles.recordValue}>
+              {currentRecord}
+            </Text>
+            <Text style={styles.recordLabel}>
+              Record ID
+            </Text>
           </View>
 
-          <Pressable style={styles.arrowButton}>
+          <Pressable
+            style={styles.arrowButton}
+            onPress={nextRecord}
+          >
             <Text style={styles.arrowText}>›</Text>
           </Pressable>
         </View>
@@ -50,20 +98,49 @@ export default function ECGInputScreen() {
       </SectionCard>
 
       <SectionCard title="Input Source">
-        <Pressable style={[styles.sourceButton, styles.sourceButtonActive]}>
-          <Text style={styles.sourceButtonActiveText}>
+        <Pressable
+          style={[
+            styles.sourceButton,
+            inputSource === 'sample' &&
+              styles.sourceButtonActive,
+          ]}
+          onPress={() => setInputSource('sample')}
+        >
+          <Text
+            style={
+              inputSource === 'sample'
+                ? styles.sourceButtonActiveText
+                : styles.sourceButtonText
+            }
+          >
             MIT-BIH Sample
           </Text>
         </Pressable>
 
-        <Pressable style={styles.sourceButton}>
-          <Text style={styles.sourceButtonText}>
+        <Pressable
+          style={[
+            styles.sourceButton,
+            inputSource === 'upload' &&
+              styles.sourceButtonActive,
+          ]}
+          onPress={() => setInputSource('upload')}
+        >
+          <Text
+            style={
+              inputSource === 'upload'
+                ? styles.sourceButtonActiveText
+                : styles.sourceButtonText
+            }
+          >
             Upload ECG File
           </Text>
         </Pressable>
       </SectionCard>
 
-      <Pressable style={styles.primaryButton}>
+      <Pressable
+        style={styles.primaryButton}
+        onPress={loadECG}
+      >
         <Text style={styles.primaryButtonText}>
           Load ECG
         </Text>
