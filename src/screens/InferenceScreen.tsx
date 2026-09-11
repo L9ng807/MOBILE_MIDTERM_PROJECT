@@ -1,53 +1,227 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useRoute } from '@react-navigation/native';
+
 import { generateMockInference } from '../utils/mockData';
 import { useAppStore } from '../store/useAppStore';
 import { ECGClass } from '../types/ecg';
 
-const COLORS: Record<ECGClass, string> = { N: '#16a34a', S: '#f59e0b', V: '#dc2626', F: '#dc2626' };
+import InfoRow from '../components/InfoRow';
+import SectionCard from '../components/SectionCard';
+
+const COLORS: Record<ECGClass, string> = {
+  N: '#16a34a',
+  S: '#f59e0b',
+  V: '#dc2626',
+  F: '#dc2626',
+};
 
 export default function InferenceScreen() {
+  const route = useRoute<any>();
+
+  const recordId = route.params?.recordId;
+  const beatIndex = route.params?.beatIndex;
+  const referenceLabel = route.params?.referenceLabel;
+  const samplingRate = route.params?.samplingRate;
+  const samples = route.params?.samples;
+
   const result = useAppStore((s) => s.latestResult);
-  const setLatestResult = useAppStore((s) => s.setLatestResult);
+  const setLatestResult = useAppStore(
+    (s) => s.setLatestResult,
+  );
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+    >
       <Text style={styles.title}>Inference</Text>
-      <TouchableOpacity style={styles.button} onPress={() => setLatestResult(generateMockInference())}>
-        <Text style={styles.buttonText}>Run Inference (mock)</Text>
+
+      <Text style={styles.subtitle}>
+        ECG heartbeat classification
+      </Text>
+
+      {recordId && (
+        <SectionCard title="Selected ECG">
+          <InfoRow
+            label="Record"
+            value={recordId}
+          />
+
+          <InfoRow
+            label="Selected Beat"
+            value={`#${beatIndex}`}
+          />
+
+          <InfoRow
+            label="Sampling Rate"
+            value={`${samplingRate} Hz`}
+          />
+
+          <InfoRow
+            label="Reference Class"
+            value={referenceLabel}
+          />
+
+          <InfoRow
+            label="Input Samples"
+            value={`${samples?.length ?? 0}`}
+          />
+        </SectionCard>
+      )}
+
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() =>
+          setLatestResult(generateMockInference())
+        }
+      >
+        <Text style={styles.buttonText}>
+          Run Inference (mock)
+        </Text>
       </TouchableOpacity>
 
       {result && (
         <View style={styles.resultBox}>
-          <Text style={[styles.predicted, { color: COLORS[result.predictedClass] }]}>
-            Predicted: {result.predictedClass} ({result.confidence.toFixed(1)}%)
+          <Text style={styles.resultTitle}>
+            Classification Result
           </Text>
-          {(Object.keys(result.probabilities) as ECGClass[]).map((cls) => (
+
+          <Text
+            style={[
+              styles.predicted,
+              {
+                color: COLORS[result.predictedClass],
+              },
+            ]}
+          >
+            Predicted: {result.predictedClass} (
+            {result.confidence.toFixed(1)}%)
+          </Text>
+
+          {(
+            Object.keys(
+              result.probabilities,
+            ) as ECGClass[]
+          ).map((cls) => (
             <View key={cls} style={styles.row}>
-              <Text style={styles.label}>{cls}</Text>
+              <Text style={styles.label}>
+                {cls}
+              </Text>
+
               <View style={styles.barBg}>
-                <View style={[styles.barFill, { width: `${result.probabilities[cls]}%`, backgroundColor: COLORS[cls] }]} />
+                <View
+                  style={[
+                    styles.barFill,
+                    {
+                      width: `${result.probabilities[cls]}%`,
+                      backgroundColor: COLORS[cls],
+                    },
+                  ]}
+                />
               </View>
-              <Text style={styles.value}>{result.probabilities[cls].toFixed(1)}%</Text>
+
+              <Text style={styles.value}>
+                {result.probabilities[
+                  cls
+                ].toFixed(1)}
+                %
+              </Text>
             </View>
           ))}
-          <Text style={styles.note}>* Kết quả phân loại của mô hình, không phải chẩn đoán y khoa.</Text>
+
+          <Text style={styles.note}>
+            * Kết quả phân loại của mô hình
+          </Text>
         </View>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', paddingTop: 60, gap: 16, paddingHorizontal: 20 },
-  title: { fontSize: 22, fontWeight: 'bold' },
-  button: { backgroundColor: '#2563eb', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8 },
-  buttonText: { color: 'white', fontWeight: 'bold' },
-  resultBox: { width: '100%', gap: 8 },
-  predicted: { fontSize: 18, fontWeight: 'bold', textAlign: 'center', marginBottom: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  label: { width: 20, fontWeight: 'bold' },
-  barBg: { flex: 1, height: 10, backgroundColor: '#e2e8f0', borderRadius: 5, overflow: 'hidden' },
-  barFill: { height: '100%' },
-  value: { width: 50, textAlign: 'right' },
-  note: { fontSize: 12, color: '#64748b', marginTop: 12, fontStyle: 'italic' },
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  content: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    marginTop: 4,
+    marginBottom: 20,
+  },
+  button: {
+    backgroundColor: '#2563eb',
+    paddingVertical: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  buttonText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  resultBox: {
+    width: '100%',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    gap: 10,
+  },
+  resultTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 4,
+  },
+  predicted: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  label: {
+    width: 20,
+    fontWeight: '700',
+  },
+  barBg: {
+    flex: 1,
+    height: 10,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+  },
+  value: {
+    width: 50,
+    textAlign: 'right',
+  },
+  note: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 12,
+    fontStyle: 'italic',
+  },
 });

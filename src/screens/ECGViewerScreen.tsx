@@ -42,6 +42,11 @@ export default function ECGViewerScreen() {
     record.samples.length,
   );
 
+  const selectedSamples = record.samples.slice(
+    segmentStart,
+    segmentEnd,
+  );
+
   const previousBeat = () => {
     setBeatIndex((current) =>
       current === 0 ? totalBeats - 1 : current - 1,
@@ -60,6 +65,7 @@ export default function ECGViewerScreen() {
       beatIndex: selectedBeat,
       referenceLabel: record.label,
       samplingRate: record.samplingRate,
+      samples: selectedSamples,
     });
   };
 
