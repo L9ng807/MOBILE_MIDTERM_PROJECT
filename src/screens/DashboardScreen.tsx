@@ -1,73 +1,48 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import InfoRow from '../components/InfoRow';
+import MetricItem from '../components/MetricItem';
+import SectionCard from '../components/SectionCard';
+import StatusBadge from '../components/StatusBadge';
+
 export default function DashboardScreen() {
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+    >
       <Text style={styles.title}>Hardware-Aware ECG</Text>
+
       <Text style={styles.subtitle}>
         ECG Analysis & Hardware-Aware NAS
       </Text>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>System Status</Text>
+      <SectionCard title="System Status">
+        <InfoRow label="Dataset" value="MIT-BIH" />
 
-        <View style={styles.row}>
-          <Text style={styles.label}>Dataset</Text>
-          <Text style={styles.value}>MIT-BIH</Text>
-        </View>
-
-        <View style={styles.row}>
+        <View style={styles.statusRow}>
           <Text style={styles.label}>Backend</Text>
-          <Text style={styles.online}>● Online</Text>
+          <StatusBadge text="Online" />
         </View>
 
-        <View style={styles.row}>
-          <Text style={styles.label}>Target Device</Text>
-          <Text style={styles.value}>Smartphone</Text>
-        </View>
-      </View>
+        <InfoRow label="Target Device" value="Smartphone" />
+      </SectionCard>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Current Model</Text>
-
+      <SectionCard title="Current Model">
         <Text style={styles.modelName}>NAS-ECG-v3</Text>
 
         <View style={styles.metricRow}>
-          <View style={styles.metric}>
-            <Text style={styles.metricValue}>94.8%</Text>
-            <Text style={styles.metricLabel}>Accuracy</Text>
-          </View>
-
-          <View style={styles.metric}>
-            <Text style={styles.metricValue}>18.4 ms</Text>
-            <Text style={styles.metricLabel}>Latency</Text>
-          </View>
-
-          <View style={styles.metric}>
-            <Text style={styles.metricValue}>820 KB</Text>
-            <Text style={styles.metricLabel}>Model Size</Text>
-          </View>
+          <MetricItem value="94.8%" label="Accuracy" />
+          <MetricItem value="18.4 ms" label="Latency" />
+          <MetricItem value="820 KB" label="Model Size" />
         </View>
-      </View>
+      </SectionCard>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>ECG Overview</Text>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>Record</Text>
-          <Text style={styles.value}>100</Text>
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>Sample Rate</Text>
-          <Text style={styles.value}>360 Hz</Text>
-        </View>
-
-        <View style={styles.row}>
-          <Text style={styles.label}>Current Class</Text>
-          <Text style={styles.value}>N</Text>
-        </View>
-      </View>
+      <SectionCard title="ECG Overview">
+        <InfoRow label="Record" value="100" />
+        <InfoRow label="Sample Rate" value="360 Hz" />
+        <InfoRow label="Current Class" value="N" />
+      </SectionCard>
     </ScrollView>
   );
 }
@@ -92,33 +67,15 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 20,
   },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: 12,
-  },
-  row: {
+  statusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 10,
   },
   label: {
     color: '#64748b',
-  },
-  value: {
-    color: '#0f172a',
-    fontWeight: '600',
-  },
-  online: {
-    color: '#16a34a',
-    fontWeight: '600',
+    fontSize: 15,
   },
   modelName: {
     fontSize: 20,
@@ -129,19 +86,5 @@ const styles = StyleSheet.create({
   metricRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  metric: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  metricValue: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  metricLabel: {
-    fontSize: 12,
-    color: '#64748b',
-    marginTop: 4,
   },
 });
