@@ -34,7 +34,7 @@ export default function InferenceScreen() {
         </View>
       )}
     </View>
-  );
+  ); 
 }
 
 const styles = StyleSheet.create({
