@@ -1,6 +1,8 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useDeviceStore } from '../../store/useDeviceStore';
+import { colors } from '../../theme';
+import AppIcon from '../../components/AppIcon';
 
 const ITEMS: { key: string; title: string; subtitle: string }[] = [
   { key: 'SmartphoneProfile', title: 'Smartphone Profile', subtitle: 'Thông tin điện thoại đang chạy app' },
@@ -32,7 +34,7 @@ export default function DeviceProfileScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Text style={styles.title}>Device Profile</Text>
+      <View style={styles.heading}><View style={styles.iconWrap}><AppIcon name="cpu" color={colors.cyan} /></View><View><Text style={styles.eyebrow}>HARDWARE OVERVIEW</Text><Text style={styles.title}>Devices</Text></View></View>
       <Text style={styles.note}>
         Tổng quan các thiết bị tham gia hệ thống: điện thoại (mobile edge), PYNQ ARM (điều phối) và FPGA (tăng tốc phần
         cứng).
@@ -54,23 +56,21 @@ export default function DeviceProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 20, paddingHorizontal: 20 },
-  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 8 },
-  note: { color: '#64748b', marginBottom: 16 },
+  container: { flex: 1, backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: 20 }, heading: { flexDirection: 'row', gap: 12, alignItems: 'center', marginBottom: 12 }, iconWrap: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft, borderRadius: 14 }, eyebrow: { color: colors.cyan, fontSize: 11, letterSpacing: 1, fontWeight: '800' }, title: { fontSize: 28, fontWeight: '800', color: colors.text }, note: { color: colors.textMuted, marginBottom: 16, lineHeight: 20 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   dotOk: { backgroundColor: '#22c55e' },
   dotWarn: { backgroundColor: '#f59e0b' },
   dotOff: { backgroundColor: '#94a3b8' },
-  statusText: { color: '#334155', fontWeight: '600' },
+  statusText: { color: colors.text, fontWeight: '600' },
   card: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: colors.border,
   },
-  cardTitle: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
-  cardSubtitle: { color: '#64748b' },
+  cardTitle: { fontSize: 16, fontWeight: '700', marginBottom: 4, color: colors.text },
+  cardSubtitle: { color: colors.textMuted },
 });

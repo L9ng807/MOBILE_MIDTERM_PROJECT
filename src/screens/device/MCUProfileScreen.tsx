@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { mockMCUProfile } from '../../utils/deviceData';
 import { useDeviceStore } from '../../store/useDeviceStore';
+import { colors } from '../../theme';
 
 export default function MCUProfileScreen() {
   const connectionState = useDeviceStore((s) => s.state);
@@ -35,12 +36,10 @@ export default function MCUProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 20, paddingHorizontal: 20 },
-  title: { fontSize: 20, fontWeight: 'bold', marginBottom: 8 },
-  note: { color: '#64748b', marginBottom: 16 },
-  card: { backgroundColor: '#f8fafc', borderRadius: 12, padding: 16, gap: 12 },
+  container: { flex: 1, backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: 20 },
+  title: { fontSize: 20, fontWeight: 'bold', marginBottom: 8, color: colors.text },
+  note: { color: colors.textMuted, marginBottom: 16 },
+  card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 16, gap: 12 },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
-  label: { color: '#475569', flex: 1 },
-  value: { fontWeight: '600', flex: 1, textAlign: 'right' },
-  hint: { color: '#94a3b8', fontSize: 12, marginTop: 16 },
+  label: { color: colors.textMuted, flex: 1 }, value: { fontWeight: '600', flex: 1, textAlign: 'right', color: colors.text }, hint: { color: colors.textMuted, fontSize: 12, marginTop: 16 },
 });

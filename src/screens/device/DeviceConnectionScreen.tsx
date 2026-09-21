@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { useDeviceStore } from '../../store/useDeviceStore';
 import { checkPynqHealth } from '../../utils/deviceData';
+import { colors } from '../../theme';
 
 export default function DeviceConnectionScreen() {
   const ipAddress = useDeviceStore((s) => s.ipAddress);
@@ -102,20 +103,10 @@ export default function DeviceConnectionScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 20, paddingHorizontal: 20 },
-  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 8 },
-  note: { color: '#64748b', marginBottom: 16 },
-  label: { fontWeight: '600', marginBottom: 6, marginTop: 10 },
-  input: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 8, padding: 10 },
+  container: { flex: 1, backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: 20 }, title: { fontSize: 22, fontWeight: 'bold', marginBottom: 8, color: colors.text }, note: { color: colors.textMuted, marginBottom: 16 }, label: { fontWeight: '600', marginBottom: 6, marginTop: 10, color: colors.text }, input: { borderWidth: 1, borderColor: colors.border, color: colors.text, backgroundColor: colors.surface, borderRadius: 10, padding: 12 },
   buttonRow: { flexDirection: 'row', gap: 10, marginTop: 20 },
   button: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
-  buttonPrimary: { backgroundColor: '#2563eb' },
-  buttonSecondary: { backgroundColor: '#e2e8f0' },
-  buttonText: { color: 'white', fontWeight: '700' },
-  buttonTextSecondary: { color: '#334155', fontWeight: '700' },
-  card: { backgroundColor: '#f8fafc', borderRadius: 12, padding: 16, marginTop: 20, gap: 8, marginBottom: 40 },
+  buttonPrimary: { backgroundColor: colors.primary }, buttonSecondary: { backgroundColor: colors.surfaceElevated }, buttonText: { color: colors.text, fontWeight: '700' }, buttonTextSecondary: { color: colors.text, fontWeight: '700' }, card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 16, marginTop: 20, gap: 8, marginBottom: 40 },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
-  rowLabel: { color: '#475569' },
-  rowValue: { fontWeight: '600' },
-  error: { color: '#dc2626', marginTop: 6 },
+  rowLabel: { color: colors.textMuted }, rowValue: { fontWeight: '600', color: colors.text }, error: { color: colors.danger, marginTop: 6 },
 });

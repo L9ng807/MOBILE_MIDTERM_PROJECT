@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import * as Device from 'expo-device';
 import { useBatteryLevel } from 'expo-battery';
+import { colors } from '../../theme';
 
 export default function SmartphoneProfileScreen() {
   const batteryLevel = useBatteryLevel();
@@ -43,11 +44,11 @@ export default function SmartphoneProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 20, paddingHorizontal: 20 },
-  title: { fontSize: 20, fontWeight: 'bold', marginBottom: 8 },
-  note: { color: '#64748b', marginBottom: 16 },
-  card: { backgroundColor: '#f8fafc', borderRadius: 12, padding: 16, gap: 12 },
+  container: { flex: 1, backgroundColor: colors.background, paddingTop: 20, paddingHorizontal: 20 },
+  title: { fontSize: 20, fontWeight: 'bold', marginBottom: 8, color: colors.text },
+  note: { color: colors.textMuted, marginBottom: 16 },
+  card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 16, gap: 12 },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
-  label: { color: '#475569', flex: 1 },
-  value: { fontWeight: '600', flex: 1, textAlign: 'right' },
+  label: { color: colors.textMuted, flex: 1 },
+  value: { fontWeight: '600', flex: 1, textAlign: 'right', color: colors.text },
 });
