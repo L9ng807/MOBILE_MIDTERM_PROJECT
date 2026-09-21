@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,7 +12,14 @@ import { useNavigation } from '@react-navigation/native';
 import InfoRow from '../components/InfoRow';
 import SectionCard from '../components/SectionCard';
 
-const records = ['100', '101', '102', '103', '104', '105'];
+const records = [
+  { recordId: '100', referenceLabel: 'N' },
+  { recordId: '101', referenceLabel: 'N' },
+  { recordId: '102', referenceLabel: 'S' },
+  { recordId: '103', referenceLabel: 'V' },
+  { recordId: '104', referenceLabel: 'N' },
+  { recordId: '105', referenceLabel: 'F' },
+];
 
 type InputSource = 'sample' | 'upload';
 
@@ -19,7 +27,8 @@ export default function ECGInputScreen() {
   const navigation = useNavigation<any>();
 
   const [recordIndex, setRecordIndex] = useState(0);
-  const [inputSource, setInputSource] = useState<InputSource>('sample');
+  const [inputSource, setInputSource] =
+    useState<InputSource>('sample');
 
   const currentRecord = records[recordIndex];
 
@@ -36,8 +45,16 @@ export default function ECGInputScreen() {
   };
 
   const loadECG = () => {
+    if (inputSource === 'upload') {
+      Alert.alert(
+        'ECG file required',
+        'Please select an ECG file before loading.',
+      );
+      return;
+    }
+
     navigation.navigate('ECGViewer', {
-      recordId: currentRecord,
+      recordId: currentRecord.recordId,
       inputSource,
     });
   };
@@ -48,6 +65,7 @@ export default function ECGInputScreen() {
       contentContainerStyle={styles.content}
     >
       <Text style={styles.title}>ECG Data</Text>
+
       <Text style={styles.subtitle}>
         Select ECG data for analysis
       </Text>
@@ -55,6 +73,7 @@ export default function ECGInputScreen() {
       <SectionCard title="Dataset">
         <View style={styles.selectedBox}>
           <Text style={styles.selectedTitle}>MIT-BIH</Text>
+
           <Text style={styles.selectedSubtitle}>
             Arrhythmia ECG Dataset
           </Text>
@@ -65,20 +84,23 @@ export default function ECGInputScreen() {
       </SectionCard>
 
       <SectionCard title="ECG Record">
-        <Text style={styles.fieldLabel}>Selected Record</Text>
+        <Text style={styles.fieldLabel}>
+          Selected Record
+        </Text>
 
         <View style={styles.recordSelector}>
           <Pressable
             style={styles.arrowButton}
             onPress={previousRecord}
           >
-            <Text style={styles.arrowText}>‹</Text>
+            <Text style={styles.arrowText}>{'<'}</Text>
           </Pressable>
 
           <View style={styles.recordBox}>
             <Text style={styles.recordValue}>
-              {currentRecord}
+              {currentRecord.recordId}
             </Text>
+
             <Text style={styles.recordLabel}>
               Record ID
             </Text>
@@ -88,13 +110,21 @@ export default function ECGInputScreen() {
             style={styles.arrowButton}
             onPress={nextRecord}
           >
-            <Text style={styles.arrowText}>›</Text>
+            <Text style={styles.arrowText}>{'>'}</Text>
           </Pressable>
         </View>
 
-        <InfoRow label="Current Segment" value="Segment 01" />
+        <InfoRow
+          label="Current Segment"
+          value="Segment 01"
+        />
+
         <InfoRow label="Current Beat" value="#001" />
-        <InfoRow label="Reference Label" value="N" />
+
+        <InfoRow
+          label="Reference Label"
+          value={currentRecord.referenceLabel}
+        />
       </SectionCard>
 
       <SectionCard title="Input Source">
@@ -135,6 +165,12 @@ export default function ECGInputScreen() {
             Upload ECG File
           </Text>
         </Pressable>
+
+        {inputSource === 'upload' && (
+          <Text style={styles.uploadMessage}>
+            No ECG file selected
+          </Text>
+        )}
       </SectionCard>
 
       <Pressable
@@ -203,9 +239,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   arrowText: {
-    fontSize: 30,
+    fontSize: 24,
+    fontWeight: '700',
     color: '#2563eb',
-    lineHeight: 32,
+    lineHeight: 28,
   },
   recordBox: {
     flex: 1,
@@ -240,6 +277,12 @@ const styles = StyleSheet.create({
   sourceButtonActiveText: {
     color: '#2563eb',
     fontWeight: '700',
+  },
+  uploadMessage: {
+    color: '#dc2626',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 2,
   },
   primaryButton: {
     backgroundColor: '#2563eb',
