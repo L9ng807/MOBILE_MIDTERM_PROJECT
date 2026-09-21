@@ -8,6 +8,8 @@ import {
   View,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import * as DocumentPicker from 'expo-document-picker';
+import { File } from 'expo-file-system';
 
 import InfoRow from '../components/InfoRow';
 import SectionCard from '../components/SectionCard';
@@ -23,12 +25,44 @@ const records = [
 
 type InputSource = 'sample' | 'upload';
 
+type SelectedECGFile = {
+  name: string;
+  uri: string;
+  samples: number[];
+};
+
+const parseECGSamples = (content: string): number[] => {
+  const numericRows = content
+    .replace(/^\uFEFF/, '')
+    .split(/\r?\n/)
+    .map((line) =>
+      line
+        .split(/[,\t;]/)
+        .map((cell) => cell.trim())
+        .filter((cell) => cell.length > 0)
+        .map((cell) => Number(cell))
+        .filter((value) => Number.isFinite(value)),
+    )
+    .filter((row) => row.length > 0);
+
+  if (
+    numericRows.length === 1 &&
+    numericRows[0].length > 2
+  ) {
+    return numericRows[0];
+  }
+
+  return numericRows.map((row) => row[row.length - 1]);
+};
+
 export default function ECGInputScreen() {
   const navigation = useNavigation<any>();
 
   const [recordIndex, setRecordIndex] = useState(0);
   const [inputSource, setInputSource] =
     useState<InputSource>('sample');
+  const [selectedFile, setSelectedFile] =
+    useState<SelectedECGFile | null>(null);
 
   const currentRecord = records[recordIndex];
 
@@ -44,18 +78,93 @@ export default function ECGInputScreen() {
     );
   };
 
+  const selectSampleSource = () => {
+    setInputSource('sample');
+  };
+
+  const selectECGFile = async () => {
+    setInputSource('upload');
+
+    try {
+      const result =
+        await DocumentPicker.getDocumentAsync({
+          type: '*/*',
+          multiple: false,
+          copyToCacheDirectory: true,
+        });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const asset = result.assets[0];
+
+      if (!asset.name.toLowerCase().endsWith('.csv')) {
+        setSelectedFile(null);
+
+        Alert.alert(
+          'Invalid file type',
+          'Please select an ECG file in CSV format.',
+        );
+        return;
+      }
+
+      const file = new File(asset.uri);
+      const content = await file.text();
+      const samples = parseECGSamples(content);
+
+      if (samples.length < 80) {
+        setSelectedFile(null);
+
+        Alert.alert(
+          'Invalid ECG data',
+          'The CSV file must contain at least 80 numeric samples.',
+        );
+        return;
+      }
+
+      setSelectedFile({
+        name: asset.name,
+        uri: asset.uri,
+        samples,
+      });
+    } catch {
+      setSelectedFile(null);
+
+      Alert.alert(
+        'File reading failed',
+        'The selected ECG file could not be read.',
+      );
+    }
+  };
+
   const loadECG = () => {
     if (inputSource === 'upload') {
-      Alert.alert(
-        'ECG file required',
-        'Please select an ECG file before loading.',
-      );
+      if (!selectedFile) {
+        Alert.alert(
+          'ECG file required',
+          'Please select an ECG file before loading.',
+        );
+        return;
+      }
+
+      navigation.navigate('ECGViewer', {
+        recordId: selectedFile.name.replace(
+          /\.csv$/i,
+          '',
+        ),
+        inputSource: 'upload',
+        uploadedFileName: selectedFile.name,
+        uploadedSamples: selectedFile.samples,
+        samplingRate: 360,
+      });
+
       return;
     }
 
     navigation.navigate('ECGViewer', {
       recordId: currentRecord.recordId,
-      inputSource,
+      inputSource: 'sample',
     });
   };
 
@@ -134,7 +243,7 @@ export default function ECGInputScreen() {
             inputSource === 'sample' &&
               styles.sourceButtonActive,
           ]}
-          onPress={() => setInputSource('sample')}
+          onPress={selectSampleSource}
         >
           <Text
             style={
@@ -153,7 +262,7 @@ export default function ECGInputScreen() {
             inputSource === 'upload' &&
               styles.sourceButtonActive,
           ]}
-          onPress={() => setInputSource('upload')}
+          onPress={selectECGFile}
         >
           <Text
             style={
@@ -166,11 +275,22 @@ export default function ECGInputScreen() {
           </Text>
         </Pressable>
 
-        {inputSource === 'upload' && (
-          <Text style={styles.uploadMessage}>
-            No ECG file selected
-          </Text>
-        )}
+        {inputSource === 'upload' &&
+          (selectedFile ? (
+            <View style={styles.fileBox}>
+              <Text style={styles.fileName}>
+                {selectedFile.name}
+              </Text>
+
+              <Text style={styles.fileDetails}>
+                {selectedFile.samples.length} samples
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.uploadMessage}>
+              No ECG file selected
+            </Text>
+          ))}
       </SectionCard>
 
       <Pressable
@@ -283,6 +403,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     marginTop: 2,
+  },
+  fileBox: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#86efac',
+    borderRadius: 10,
+    padding: 12,
+  },
+  fileName: {
+    color: '#166534',
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  fileDetails: {
+    color: '#15803d',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
   },
   primaryButton: {
     backgroundColor: '#2563eb',

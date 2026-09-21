@@ -17,6 +17,25 @@ import SectionCard from '../components/SectionCard';
 import { getECGRecord } from '../data/ecgRecords';
 
 const SEGMENT_SIZE = 80;
+const MAX_CHART_POINTS = 800;
+
+const reduceChartSamples = (samples: number[]) => {
+  if (samples.length <= MAX_CHART_POINTS) {
+    return samples;
+  }
+
+  return Array.from(
+    { length: MAX_CHART_POINTS },
+    (_, index) => {
+      const sourceIndex = Math.round(
+        (index * (samples.length - 1)) /
+          (MAX_CHART_POINTS - 1),
+      );
+
+      return samples[sourceIndex];
+    },
+  );
+};
 
 export default function ECGViewerScreen() {
   const route = useRoute<any>();
@@ -24,25 +43,64 @@ export default function ECGViewerScreen() {
 
   const recordId = route.params?.recordId ?? '100';
   const inputSource = route.params?.inputSource ?? 'sample';
+  const uploadedFileName = route.params
+    ?.uploadedFileName as string | undefined;
+  const uploadedSamplingRate = route.params
+    ?.samplingRate as number | undefined;
 
-  const record = getECGRecord(recordId);
+  const uploadedSamples = Array.isArray(
+    route.params?.uploadedSamples,
+  )
+    ? route.params.uploadedSamples.filter(
+        (value: unknown): value is number =>
+          typeof value === 'number' &&
+          Number.isFinite(value),
+      )
+    : [];
+
+  const sampleRecord = getECGRecord(
+    inputSource === 'sample' ? recordId : '100',
+  );
+
+  const isUploaded =
+    inputSource === 'upload' &&
+    uploadedSamples.length >= SEGMENT_SIZE;
+
+  const samples = isUploaded
+    ? uploadedSamples
+    : sampleRecord.samples;
+
+  const displayRecordId = isUploaded
+    ? uploadedFileName ?? recordId
+    : sampleRecord.recordId;
+
+  const samplingRate = isUploaded
+    ? uploadedSamplingRate ?? 360
+    : sampleRecord.samplingRate;
+
+  const heartRate = isUploaded
+    ? undefined
+    : sampleRecord.heartRate;
+
+  const referenceLabel = isUploaded
+    ? undefined
+    : sampleRecord.label;
 
   const [beatIndex, setBeatIndex] = useState(0);
 
-  const totalBeats = Math.ceil(
-    record.samples.length / SEGMENT_SIZE,
+  const totalBeats = Math.max(
+    1,
+    Math.floor(samples.length / SEGMENT_SIZE),
   );
 
   const selectedBeat = beatIndex + 1;
-
   const segmentStart = beatIndex * SEGMENT_SIZE;
-
   const segmentEnd = Math.min(
     segmentStart + SEGMENT_SIZE,
-    record.samples.length,
+    samples.length,
   );
 
-  const selectedSamples = record.samples.slice(
+  const selectedSamples = samples.slice(
     segmentStart,
     segmentEnd,
   );
@@ -61,10 +119,10 @@ export default function ECGViewerScreen() {
 
   const analyzeBeat = () => {
     navigation.getParent()?.navigate('Inference', {
-      recordId: record.recordId,
+      recordId: displayRecordId,
       beatIndex: selectedBeat,
-      referenceLabel: record.label,
-      samplingRate: record.samplingRate,
+      referenceLabel,
+      samplingRate,
       samples: selectedSamples,
     });
   };
@@ -73,15 +131,22 @@ export default function ECGViewerScreen() {
   const chartHeight = 180;
   const centerY = chartHeight / 2;
 
-  const maxAmplitude = Math.max(
-    ...record.samples.map((value) => Math.abs(value)),
+  const chartSamples = reduceChartSamples(samples);
+
+  const maxAmplitude = chartSamples.reduce(
+    (maximum, value) =>
+      Math.max(maximum, Math.abs(value)),
+    0,
   );
 
-  const points = record.samples
+  const points = chartSamples
     .map((sample, index) => {
-      const x =
-        (index / (record.samples.length - 1)) *
-        chartWidth;
+      const denominator = Math.max(
+        chartSamples.length - 1,
+        1,
+      );
+
+      const x = (index / denominator) * chartWidth;
 
       const normalized =
         maxAmplitude === 0
@@ -96,12 +161,10 @@ export default function ECGViewerScreen() {
     .join(' ');
 
   const selectionX =
-    (segmentStart / record.samples.length) *
-    chartWidth;
+    (segmentStart / samples.length) * chartWidth;
 
   const selectionWidth =
-    ((segmentEnd - segmentStart) /
-      record.samples.length) *
+    ((segmentEnd - segmentStart) / samples.length) *
     chartWidth;
 
   return (
@@ -112,28 +175,33 @@ export default function ECGViewerScreen() {
       <Text style={styles.title}>ECG Viewer</Text>
 
       <Text style={styles.subtitle}>
-        Record {record.recordId}
+        Record {displayRecordId}
       </Text>
 
       <SectionCard title="Record Information">
-        <InfoRow label="Dataset" value="MIT-BIH" />
+        <InfoRow
+          label="Dataset"
+          value={
+            isUploaded ? 'Uploaded CSV' : 'MIT-BIH'
+          }
+        />
 
         <InfoRow
-          label="Record"
-          value={record.recordId}
+          label={isUploaded ? 'File' : 'Record'}
+          value={displayRecordId}
         />
 
         <InfoRow
           label="Sampling Rate"
-          value={`${record.samplingRate} Hz`}
+          value={`${samplingRate} Hz`}
         />
 
         <InfoRow
           label="Input Source"
           value={
-            inputSource === 'sample'
-              ? 'MIT-BIH Sample'
-              : 'Uploaded File'
+            isUploaded
+              ? 'Uploaded File'
+              : 'MIT-BIH Sample'
           }
         />
       </SectionCard>
@@ -172,7 +240,7 @@ export default function ECGViewerScreen() {
         </View>
 
         <Text style={styles.sampleText}>
-          {record.samples.length} samples
+          {samples.length} samples
         </Text>
       </SectionCard>
 
@@ -182,7 +250,7 @@ export default function ECGViewerScreen() {
             style={styles.arrowButton}
             onPress={previousBeat}
           >
-            <Text style={styles.arrowText}>‹</Text>
+            <Text style={styles.arrowText}>{'<'}</Text>
           </Pressable>
 
           <View style={styles.beatBox}>
@@ -199,18 +267,22 @@ export default function ECGViewerScreen() {
             style={styles.arrowButton}
             onPress={nextBeat}
           >
-            <Text style={styles.arrowText}>›</Text>
+            <Text style={styles.arrowText}>{'>'}</Text>
           </Pressable>
         </View>
 
         <InfoRow
           label="Heart Rate"
-          value={`${record.heartRate} BPM`}
+          value={
+            heartRate === undefined
+              ? 'Not provided'
+              : `${heartRate} BPM`
+          }
         />
 
         <InfoRow
           label="Reference Class"
-          value={record.label}
+          value={referenceLabel ?? 'Not provided'}
         />
 
         <InfoRow
@@ -230,8 +302,9 @@ export default function ECGViewerScreen() {
 
       <View style={styles.notice}>
         <Text style={styles.noticeText}>
-          Current waveform uses simulated ECG data for
-          application development.
+          {isUploaded
+            ? 'Uploaded CSV data is divided into fixed 80-sample segments for UI testing.'
+            : 'Current waveform uses simulated ECG data for application development.'}
         </Text>
       </View>
     </ScrollView>
@@ -286,8 +359,9 @@ const styles = StyleSheet.create({
   },
   arrowText: {
     color: '#2563eb',
-    fontSize: 28,
-    lineHeight: 30,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 28,
   },
   beatBox: {
     flex: 1,
