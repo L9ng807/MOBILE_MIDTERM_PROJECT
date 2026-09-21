@@ -18,7 +18,7 @@ const COLORS: Record<ECGClass, string> = {
   N: '#16a34a',
   S: '#f59e0b',
   V: '#dc2626',
-  F: '#dc2626',
+  F: '#7c3aed',
 };
 
 export default function InferenceScreen() {
@@ -26,7 +26,9 @@ export default function InferenceScreen() {
 
   const recordId = route.params?.recordId;
   const beatIndex = route.params?.beatIndex;
-  const referenceLabel = route.params?.referenceLabel;
+  const referenceLabel = route.params?.referenceLabel as
+    | ECGClass
+    | undefined;
   const samplingRate = route.params?.samplingRate;
   const samples = route.params?.samples;
 
@@ -65,7 +67,7 @@ export default function InferenceScreen() {
 
           <InfoRow
             label="Reference Class"
-            value={referenceLabel}
+            value={referenceLabel ?? 'Unknown'}
           />
 
           <InfoRow
@@ -104,15 +106,85 @@ export default function InferenceScreen() {
             {result.confidence.toFixed(1)}%)
           </Text>
 
+          {referenceLabel && (
+            <View style={styles.comparisonBox}>
+              <View style={styles.comparisonRow}>
+                <Text style={styles.comparisonLabel}>
+                  Ground Truth
+                </Text>
+
+                <Text
+                  style={[
+                    styles.comparisonValue,
+                    {
+                      color: COLORS[referenceLabel],
+                    },
+                  ]}
+                >
+                  {referenceLabel}
+                </Text>
+              </View>
+
+              <View style={styles.comparisonRow}>
+                <Text style={styles.comparisonLabel}>
+                  Prediction
+                </Text>
+
+                <Text
+                  style={[
+                    styles.comparisonValue,
+                    {
+                      color:
+                        COLORS[result.predictedClass],
+                    },
+                  ]}
+                >
+                  {result.predictedClass}
+                </Text>
+              </View>
+
+              <View style={styles.comparisonRow}>
+                <Text style={styles.comparisonLabel}>
+                  Status
+                </Text>
+
+                <Text
+                  style={[
+                    styles.comparisonValue,
+                    {
+                      color:
+                        referenceLabel ===
+                        result.predictedClass
+                          ? '#16a34a'
+                          : '#dc2626',
+                    },
+                  ]}
+                >
+                  {referenceLabel === result.predictedClass
+                    ? 'Correct'
+                    : 'Incorrect'}
+                </Text>
+              </View>
+
+              <View style={styles.comparisonRow}>
+                <Text style={styles.comparisonLabel}>
+                  Confidence
+                </Text>
+
+                <Text style={styles.comparisonValue}>
+                  {result.confidence.toFixed(1)}%
+                </Text>
+              </View>
+            </View>
+          )}
+
           {(
             Object.keys(
               result.probabilities,
             ) as ECGClass[]
           ).map((cls) => (
             <View key={cls} style={styles.row}>
-              <Text style={styles.label}>
-                {cls}
-              </Text>
+              <Text style={styles.label}>{cls}</Text>
 
               <View style={styles.barBg}>
                 <View
@@ -127,16 +199,13 @@ export default function InferenceScreen() {
               </View>
 
               <Text style={styles.value}>
-                {result.probabilities[
-                  cls
-                ].toFixed(1)}
-                %
+                {result.probabilities[cls].toFixed(1)}%
               </Text>
             </View>
           ))}
 
           <Text style={styles.note}>
-            * Kết quả phân loại của mô hình
+            * Mock inference result for UI testing only
           </Text>
         </View>
       )}
@@ -194,6 +263,29 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 8,
+  },
+  comparisonBox: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    gap: 10,
+  },
+  comparisonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  comparisonLabel: {
+    fontSize: 14,
+    color: '#64748b',
+  },
+  comparisonValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0f172a',
   },
   row: {
     flexDirection: 'row',
