@@ -1,16 +1,27 @@
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import {
+  createNativeStackNavigator,
+} from '@react-navigation/native-stack';
 
 import ECGInputScreen from '../screens/ECGInputScreen';
 import ECGViewerScreen from '../screens/ECGViewerScreen';
 
-const Stack = createNativeStackNavigator();
+import type {
+  ECGStackParamList,
+} from '../types/navigation';
+
+const Stack =
+  createNativeStackNavigator<ECGStackParamList>();
 
 export default function ECGStackNavigator() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      initialRouteName="ECGInput"
+    >
       <Stack.Screen
         name="ECGInput"
-        component={ECGInputScreen}
+        component={
+          ECGInputScreen
+        }
         options={{
           title: 'ECG Data',
           headerShown: false,
@@ -19,7 +30,9 @@ export default function ECGStackNavigator() {
 
       <Stack.Screen
         name="ECGViewer"
-        component={ECGViewerScreen}
+        component={
+          ECGViewerScreen
+        }
         options={{
           title: 'ECG Viewer',
         }}

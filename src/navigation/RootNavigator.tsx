@@ -1,5 +1,10 @@
-import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import {
+  NavigationContainer,
+} from '@react-navigation/native';
+
+import {
+  createBottomTabNavigator,
+} from '@react-navigation/bottom-tabs';
 
 import DashboardScreen from '../screens/DashboardScreen';
 import InferenceScreen from '../screens/InferenceScreen';
@@ -8,20 +13,31 @@ import SettingsScreen from '../screens/SettingsScreen';
 
 import ECGStackNavigator from './ECGStackNavigator';
 
-const Tab = createBottomTabNavigator();
+import type {
+  RootTabParamList,
+} from '../types/navigation';
+
+const Tab =
+  createBottomTabNavigator<RootTabParamList>();
 
 export default function RootNavigator() {
   return (
     <NavigationContainer>
-      <Tab.Navigator initialRouteName="Dashboard">
+      <Tab.Navigator
+        initialRouteName="Dashboard"
+      >
         <Tab.Screen
           name="Dashboard"
-          component={DashboardScreen}
+          component={
+            DashboardScreen
+          }
         />
 
         <Tab.Screen
           name="ECG"
-          component={ECGStackNavigator}
+          component={
+            ECGStackNavigator
+          }
           options={{
             headerShown: false,
           }}
@@ -29,17 +45,23 @@ export default function RootNavigator() {
 
         <Tab.Screen
           name="Inference"
-          component={InferenceScreen}
+          component={
+            InferenceScreen
+          }
         />
 
         <Tab.Screen
           name="Performance"
-          component={PerformanceScreen}
+          component={
+            PerformanceScreen
+          }
         />
 
         <Tab.Screen
           name="Settings"
-          component={SettingsScreen}
+          component={
+            SettingsScreen
+          }
         />
       </Tab.Navigator>
     </NavigationContainer>
