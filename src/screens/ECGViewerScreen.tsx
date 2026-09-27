@@ -23,6 +23,18 @@ import {
   useRoute,
 } from '@react-navigation/native';
 
+import type {
+  RouteProp,
+} from '@react-navigation/native';
+
+import type {
+  BottomTabNavigationProp,
+} from '@react-navigation/bottom-tabs';
+
+import type {
+  NativeStackNavigationProp,
+} from '@react-navigation/native-stack';
+
 import InfoRow from '../components/InfoRow';
 import SectionCard from '../components/SectionCard';
 
@@ -35,11 +47,9 @@ import {
 } from '../store/useAppStore';
 
 import type {
-  DatasetSplit,
   ECGBeat,
   ECGClass,
   ECGInferenceInput,
-  ECGInputSource,
   ECGRecordResponse,
 } from '../types/ecg';
 
@@ -47,6 +57,28 @@ import {
   MIT_BIH_SAMPLING_RATE,
   MODEL_INPUT_SAMPLES,
 } from '../types/ecg';
+
+import type {
+  ECGStackParamList,
+  RootTabParamList,
+} from '../types/navigation';
+
+type ECGViewerRouteProp =
+  RouteProp<
+    ECGStackParamList,
+    'ECGViewer'
+  >;
+
+type ECGViewerNavigationProp =
+  NativeStackNavigationProp<
+    ECGStackParamList,
+    'ECGViewer'
+  >;
+
+type RootTabNavigationProp =
+  BottomTabNavigationProp<
+    RootTabParamList
+  >;
 
 const CHART_WIDTH = 320;
 const CHART_HEIGHT = 180;
@@ -117,10 +149,10 @@ function createChartPoints(
 
 export default function ECGViewerScreen() {
   const route =
-    useRoute<any>();
+    useRoute<ECGViewerRouteProp>();
 
   const navigation =
-    useNavigation<any>();
+    useNavigation<ECGViewerNavigationProp>();
 
   const setSelectedECG =
     useAppStore(
@@ -128,49 +160,38 @@ export default function ECGViewerScreen() {
         state.setSelectedECG,
     );
 
+  const params =
+    route.params;
+
   const inputSource =
-    (route.params
-      ?.inputSource ??
-      'dataset') as
-      ECGInputSource;
+    params.inputSource;
 
   const recordId =
-    (route.params
-      ?.recordId ??
-      '') as string;
+    params.recordId;
+
+  const isDataset =
+    inputSource ===
+    'dataset';
 
   const split =
-    (route.params
-      ?.split ??
-      'test') as
-      DatasetSplit;
+    isDataset
+      ? params.split
+      : undefined;
 
   const uploadedFileName =
-    route.params
-      ?.uploadedFileName as
-      | string
-      | undefined;
+    !isDataset
+      ? params.uploadedFileName
+      : undefined;
 
   const uploadedSamplingRate =
-    route.params
-      ?.samplingRate as
-      | number
-      | undefined;
+    !isDataset
+      ? params.samplingRate
+      : undefined;
 
   const uploadedSamples =
-    Array.isArray(
-      route.params
-        ?.uploadedSamples,
-    )
-      ? (
-          route.params
-            .uploadedSamples as unknown[]
-        ).filter(
-          (
-            value,
-          ): value is number =>
-            typeof value ===
-              'number' &&
+    !isDataset
+      ? params.uploadedSamples.filter(
+          (value) =>
             Number.isFinite(
               value,
             ),
@@ -205,14 +226,13 @@ export default function ECGViewerScreen() {
       null,
     );
 
-  const isDataset =
-    inputSource ===
-    'dataset';
-
   const loadRecord =
     useCallback(
       async () => {
-        if (!isDataset) {
+        if (
+          !isDataset ||
+          !split
+        ) {
           return;
         }
 
@@ -285,6 +305,7 @@ export default function ECGViewerScreen() {
             length:
               beatCount,
           },
+
           (
             _,
             index,
@@ -376,21 +397,22 @@ export default function ECGViewerScreen() {
       );
     };
 
-  const nextBeat = () => {
-    if (
-      totalBeats <= 1
-    ) {
-      return;
-    }
+  const nextBeat =
+    () => {
+      if (
+        totalBeats <= 1
+      ) {
+        return;
+      }
 
-    setBeatIndex(
-      (current) =>
-        current ===
-        totalBeats - 1
-          ? 0
-          : current + 1,
-    );
-  };
+      setBeatIndex(
+        (current) =>
+          current ===
+          totalBeats - 1
+            ? 0
+            : current + 1,
+      );
+    };
 
   const analyzeBeat =
     () => {
@@ -431,12 +453,13 @@ export default function ECGViewerScreen() {
         inferenceInput,
       );
 
-      navigation
-        .getParent()
-        ?.navigate(
-          'Inference',
-          inferenceInput,
-        );
+      const parentNavigation =
+        navigation.getParent<RootTabNavigationProp>();
+
+      parentNavigation?.navigate(
+        'Inference',
+        inferenceInput,
+      );
     };
 
   if (
@@ -463,7 +486,7 @@ export default function ECGViewerScreen() {
             styles.centeredText
           }
         >
-          {split.toUpperCase()}{' '}
+          {split?.toUpperCase()}{' '}
           / {recordId}
         </Text>
       </View>
@@ -559,7 +582,8 @@ export default function ECGViewerScreen() {
           }
         />
 
-        {isDataset && (
+        {isDataset &&
+          split && (
           <InfoRow
             label="Split"
             value={
@@ -835,102 +859,76 @@ const styles =
   StyleSheet.create({
     container: {
       flex: 1,
-
       backgroundColor:
         '#f8fafc',
     },
 
     content: {
       padding: 20,
-
       paddingBottom: 40,
     },
 
     centered: {
       flex: 1,
-
       backgroundColor:
         '#f8fafc',
-
       alignItems:
         'center',
-
       justifyContent:
         'center',
-
       padding: 24,
     },
 
     centeredTitle: {
       fontSize: 18,
-
       fontWeight: '700',
-
       color: '#0f172a',
-
       marginBottom: 6,
     },
 
     centeredText: {
       color: '#64748b',
-
       textAlign:
         'center',
-
       lineHeight: 20,
     },
 
     title: {
       fontSize: 28,
-
       fontWeight: '700',
-
       color: '#0f172a',
     },
 
     subtitle: {
       fontSize: 14,
-
       color: '#64748b',
-
       marginTop: 4,
-
       marginBottom: 20,
     },
 
     beatSelector: {
       flexDirection: 'row',
-
       alignItems:
         'center',
-
       marginBottom: 18,
     },
 
     arrowButton: {
       width: 46,
-
       height: 46,
-
       borderRadius: 12,
-
       backgroundColor:
         '#eff6ff',
-
       justifyContent:
         'center',
-
       alignItems:
         'center',
     },
 
     arrowText: {
       color: '#2563eb',
-
       fontSize: 24,
-
       fontWeight: '700',
-
       lineHeight: 28,
     },
 
@@ -940,38 +938,29 @@ const styles =
 
     beatBox: {
       flex: 1,
-
       alignItems:
         'center',
     },
 
     beatValue: {
       fontSize: 20,
-
       fontWeight: '700',
-
       color: '#0f172a',
     },
 
     beatLabel: {
       color: '#64748b',
-
       fontSize: 12,
-
       marginTop: 4,
     },
 
     chart: {
       height:
         CHART_HEIGHT,
-
       backgroundColor:
         '#f8fafc',
-
       borderRadius: 12,
-
       overflow: 'hidden',
-
       justifyContent:
         'center',
     },
@@ -979,25 +968,18 @@ const styles =
     chartNote: {
       textAlign:
         'center',
-
       color: '#64748b',
-
       fontSize: 12,
-
       marginTop: 8,
     },
 
     primaryButton: {
       backgroundColor:
         '#2563eb',
-
       borderRadius: 14,
-
       paddingVertical: 16,
-
       alignItems:
         'center',
-
       marginBottom: 16,
     },
 
@@ -1008,64 +990,48 @@ const styles =
 
     primaryButtonText: {
       color: '#ffffff',
-
       fontSize: 16,
-
       fontWeight: '700',
     },
 
     notice: {
       backgroundColor:
         '#eff6ff',
-
       borderRadius: 12,
-
       padding: 14,
     },
 
     noticeText: {
       color: '#1e40af',
-
       fontSize: 13,
-
       lineHeight: 19,
     },
 
     emptyBox: {
       backgroundColor:
         '#ffffff',
-
       padding: 20,
-
       borderRadius: 14,
     },
 
     errorTitle: {
       color: '#b91c1c',
-
       fontSize: 18,
-
       fontWeight: '700',
-
       marginBottom: 8,
     },
 
     retryButton: {
       marginTop: 16,
-
       backgroundColor:
         '#2563eb',
-
       paddingVertical: 12,
-
       paddingHorizontal: 24,
-
       borderRadius: 10,
     },
 
     retryButtonText: {
       color: '#ffffff',
-
       fontWeight: '700',
     },
   });

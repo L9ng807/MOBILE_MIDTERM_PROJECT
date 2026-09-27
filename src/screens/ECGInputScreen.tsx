@@ -18,6 +18,10 @@ import {
   useNavigation,
 } from '@react-navigation/native';
 
+import type {
+  NativeStackNavigationProp,
+} from '@react-navigation/native-stack';
+
 import * as DocumentPicker from 'expo-document-picker';
 
 import {
@@ -44,10 +48,20 @@ import {
   MODEL_INPUT_SAMPLES,
 } from '../types/ecg';
 
+import type {
+  ECGStackParamList,
+} from '../types/navigation';
+
 import {
   getCompleteHeartbeatCount,
   parseECGSamples,
 } from '../utils/ecgCsv';
+
+type ECGInputNavigationProp =
+  NativeStackNavigationProp<
+    ECGStackParamList,
+    'ECGInput'
+  >;
 
 const SPLITS: DatasetSplit[] = [
   'train',
@@ -57,7 +71,7 @@ const SPLITS: DatasetSplit[] = [
 
 export default function ECGInputScreen() {
   const navigation =
-    useNavigation<any>();
+    useNavigation<ECGInputNavigationProp>();
 
   const [
     inputSource,
@@ -184,6 +198,7 @@ export default function ECGInputScreen() {
       DatasetSplit,
   ) => {
     setSplit(selectedSplit);
+
     setInputSource(
       'dataset',
     );
@@ -205,21 +220,22 @@ export default function ECGInputScreen() {
       );
     };
 
-  const nextRecord = () => {
-    if (
-      records.length === 0
-    ) {
-      return;
-    }
+  const nextRecord =
+    () => {
+      if (
+        records.length === 0
+      ) {
+        return;
+      }
 
-    setRecordIndex(
-      (current) =>
-        current ===
-        records.length - 1
-          ? 0
-          : current + 1,
-    );
-  };
+      setRecordIndex(
+        (current) =>
+          current ===
+          records.length - 1
+            ? 0
+            : current + 1,
+      );
+    };
 
   const selectDatasetSource =
     () => {
@@ -299,9 +315,12 @@ export default function ECGInputScreen() {
 
         setSelectedFile({
           name: asset.name,
+
           uri: asset.uri,
+
           samplingRate:
             MIT_BIH_SAMPLING_RATE,
+
           samples,
         });
       } catch {
@@ -316,15 +335,51 @@ export default function ECGInputScreen() {
       }
     };
 
-  const loadECG = () => {
-    if (
-      inputSource ===
-      'upload'
-    ) {
-      if (!selectedFile) {
+  const loadECG =
+    () => {
+      if (
+        inputSource ===
+        'upload'
+      ) {
+        if (!selectedFile) {
+          Alert.alert(
+            'ECG file required',
+            'Please select an ECG file before loading.',
+          );
+
+          return;
+        }
+
+        navigation.navigate(
+          'ECGViewer',
+          {
+            inputSource:
+              'upload',
+
+            recordId:
+              selectedFile.name.replace(
+                /\.csv$/i,
+                '',
+              ),
+
+            uploadedFileName:
+              selectedFile.name,
+
+            uploadedSamples:
+              selectedFile.samples,
+
+            samplingRate:
+              selectedFile.samplingRate,
+          },
+        );
+
+        return;
+      }
+
+      if (!currentRecord) {
         Alert.alert(
-          'ECG file required',
-          'Please select an ECG file before loading.',
+          'Record required',
+          'No MIT-BIH record is currently available.',
         );
 
         return;
@@ -334,50 +389,15 @@ export default function ECGInputScreen() {
         'ECGViewer',
         {
           inputSource:
-            'upload',
+            'dataset',
+
+          split,
 
           recordId:
-            selectedFile.name.replace(
-              /\.csv$/i,
-              '',
-            ),
-
-          uploadedFileName:
-            selectedFile.name,
-
-          uploadedSamples:
-            selectedFile.samples,
-
-          samplingRate:
-            selectedFile.samplingRate,
+            currentRecord.record_id,
         },
       );
-
-      return;
-    }
-
-    if (!currentRecord) {
-      Alert.alert(
-        'Record required',
-        'No MIT-BIH record is currently available.',
-      );
-
-      return;
-    }
-
-    navigation.navigate(
-      'ECGViewer',
-      {
-        inputSource:
-          'dataset',
-
-        split,
-
-        recordId:
-          currentRecord.record_id,
-      },
-    );
-  };
+    };
 
   const uploadedBeatCount =
     selectedFile
@@ -829,215 +849,305 @@ const styles =
   StyleSheet.create({
     container: {
       flex: 1,
+
       backgroundColor:
         '#f8fafc',
     },
 
     content: {
       padding: 20,
+
       paddingBottom: 40,
     },
 
     title: {
       fontSize: 28,
+
       fontWeight: '700',
+
       color: '#0f172a',
     },
 
     subtitle: {
       fontSize: 14,
+
       color: '#64748b',
+
       marginTop: 4,
+
       marginBottom: 20,
     },
 
     selectedBox: {
       backgroundColor:
         '#eff6ff',
+
       borderRadius: 12,
+
       padding: 14,
+
       marginBottom: 16,
     },
 
     selectedTitle: {
       fontSize: 18,
+
       fontWeight: '700',
+
       color: '#2563eb',
     },
 
     selectedSubtitle: {
       color: '#64748b',
+
       marginTop: 4,
     },
 
     sourceButton: {
       borderWidth: 1,
-      borderColor: '#cbd5e1',
+
+      borderColor:
+        '#cbd5e1',
+
       borderRadius: 12,
+
       padding: 14,
+
       marginBottom: 10,
-      alignItems: 'center',
+
+      alignItems:
+        'center',
     },
 
     sourceButtonActive: {
       backgroundColor:
         '#eff6ff',
-      borderColor: '#2563eb',
+
+      borderColor:
+        '#2563eb',
     },
 
     sourceButtonText: {
       color: '#334155',
+
       fontWeight: '600',
     },
 
     sourceButtonActiveText: {
       color: '#2563eb',
+
       fontWeight: '700',
     },
 
     splitRow: {
       flexDirection: 'row',
+
       gap: 8,
+
       marginBottom: 16,
     },
 
     splitButton: {
       flex: 1,
+
       borderWidth: 1,
-      borderColor: '#cbd5e1',
+
+      borderColor:
+        '#cbd5e1',
+
       borderRadius: 10,
+
       paddingVertical: 10,
-      alignItems: 'center',
+
+      alignItems:
+        'center',
     },
 
     splitButtonActive: {
       backgroundColor:
         '#2563eb',
-      borderColor: '#2563eb',
+
+      borderColor:
+        '#2563eb',
     },
 
     splitButtonText: {
       color: '#334155',
+
       fontWeight: '600',
     },
 
     splitButtonActiveText: {
       color: '#ffffff',
+
       fontWeight: '700',
     },
 
     recordSelector: {
       flexDirection: 'row',
-      alignItems: 'center',
+
+      alignItems:
+        'center',
+
       justifyContent:
         'space-between',
+
       marginBottom: 20,
     },
 
     arrowButton: {
       width: 48,
+
       height: 48,
+
       borderRadius: 12,
+
       backgroundColor:
         '#eff6ff',
-      alignItems: 'center',
+
+      alignItems:
+        'center',
+
       justifyContent:
         'center',
     },
 
     arrowText: {
       color: '#2563eb',
+
       fontSize: 24,
+
       fontWeight: '700',
+
       lineHeight: 28,
     },
 
     recordBox: {
       flex: 1,
-      alignItems: 'center',
+
+      alignItems:
+        'center',
     },
 
     recordValue: {
       fontSize: 28,
+
       fontWeight: '700',
+
       color: '#0f172a',
     },
 
     recordLabel: {
       color: '#64748b',
+
       fontSize: 12,
+
       marginTop: 2,
     },
 
     infoText: {
       color: '#64748b',
+
       fontSize: 13,
+
       lineHeight: 18,
     },
 
     errorBox: {
       backgroundColor:
         '#fef2f2',
+
       borderWidth: 1,
-      borderColor: '#fecaca',
+
+      borderColor:
+        '#fecaca',
+
       borderRadius: 12,
+
       padding: 12,
     },
 
     errorTitle: {
       color: '#991b1b',
+
       fontWeight: '700',
+
       marginBottom: 4,
     },
 
     errorText: {
       color: '#b91c1c',
+
       fontSize: 13,
+
       lineHeight: 18,
     },
 
     retryButton: {
       marginTop: 12,
+
       backgroundColor:
         '#dc2626',
+
       borderRadius: 10,
+
       paddingVertical: 10,
-      alignItems: 'center',
+
+      alignItems:
+        'center',
     },
 
     retryButtonText: {
       color: '#ffffff',
+
       fontWeight: '700',
     },
 
     fileBox: {
       backgroundColor:
         '#f0fdf4',
+
       borderWidth: 1,
-      borderColor: '#86efac',
+
+      borderColor:
+        '#86efac',
+
       borderRadius: 10,
+
       padding: 12,
     },
 
     fileName: {
       color: '#166534',
+
       fontWeight: '700',
-      textAlign: 'center',
+
+      textAlign:
+        'center',
     },
 
     fileDetails: {
       color: '#15803d',
+
       fontSize: 12,
-      textAlign: 'center',
+
+      textAlign:
+        'center',
+
       marginTop: 4,
     },
 
     primaryButton: {
       backgroundColor:
         '#2563eb',
+
       borderRadius: 14,
+
       paddingVertical: 16,
-      alignItems: 'center',
+
+      alignItems:
+        'center',
+
       marginTop: 4,
     },
 
@@ -1048,7 +1158,9 @@ const styles =
 
     primaryButtonText: {
       color: '#ffffff',
+
       fontSize: 16,
+
       fontWeight: '700',
     },
   });

@@ -16,8 +16,11 @@ import {
   useRoute,
 } from '@react-navigation/native';
 
-import InfoRow from '../components/InfoRow';
+import type {
+  RouteProp,
+} from '@react-navigation/native';
 
+import InfoRow from '../components/InfoRow';
 import SectionCard from '../components/SectionCard';
 
 import {
@@ -46,68 +49,49 @@ import type {
   CandidateInfo,
 } from '../types/model';
 
+import type {
+  RootTabParamList,
+} from '../types/navigation';
+
+type InferenceRouteProp =
+  RouteProp<
+    RootTabParamList,
+    'Inference'
+  >;
+
 const COLORS: Record<
   ECGClass,
   string
 > = {
   N: '#16a34a',
-
   L: '#2563eb',
-
   R: '#7c3aed',
-
   V: '#dc2626',
-
   A: '#f59e0b',
 };
 
 export default function InferenceScreen() {
   const route =
-    useRoute<any>();
+    useRoute<InferenceRouteProp>();
+
+  const params =
+    route.params;
 
   const recordId =
-    route.params
-      ?.recordId as
-      | string
-      | undefined;
+    params?.recordId;
 
   const beatIndex =
-    route.params
-      ?.beatIndex as
-      | number
-      | undefined;
+    params?.beatIndex;
 
   const referenceLabel =
-    route.params
-      ?.referenceLabel as
-      | ECGClass
-      | undefined;
+    params?.referenceLabel;
 
   const samplingRate =
-    route.params
-      ?.samplingRate as
-      | number
-      | undefined;
+    params?.samplingRate;
 
   const samples =
-    Array.isArray(
-      route.params
-        ?.samples,
-    )
-      ? (
-          route.params
-            .samples as unknown[]
-        ).filter(
-          (
-            value,
-          ): value is number =>
-            typeof value ===
-              'number' &&
-            Number.isFinite(
-              value,
-            ),
-        )
-      : [];
+    params?.samples ??
+    [];
 
   const [
     candidates,
@@ -289,7 +273,8 @@ export default function InferenceScreen() {
             selectedCandidateId,
             {
               index:
-                beatIndex ?? 0,
+                beatIndex ??
+                0,
 
               label:
                 referenceLabel,
@@ -991,42 +976,32 @@ const styles =
   StyleSheet.create({
     container: {
       flex: 1,
-
       backgroundColor:
         '#f8fafc',
     },
 
     content: {
       padding: 20,
-
       paddingBottom: 40,
     },
 
     title: {
       fontSize: 28,
-
       fontWeight: '700',
-
       color: '#0f172a',
     },
 
     subtitle: {
       fontSize: 14,
-
       color: '#64748b',
-
       marginTop: 4,
-
       marginBottom: 20,
     },
 
     loadingBox: {
       flexDirection: 'row',
-
       alignItems: 'center',
-
       gap: 10,
-
       paddingVertical: 8,
     },
 
@@ -1036,40 +1011,30 @@ const styles =
 
     candidateCard: {
       borderWidth: 1,
-
       borderColor: '#cbd5e1',
-
       borderRadius: 12,
-
       padding: 14,
-
       marginBottom: 10,
-
       backgroundColor:
         '#ffffff',
     },
 
     candidateCardSelected: {
       borderColor: '#2563eb',
-
       backgroundColor:
         '#eff6ff',
     },
 
     candidateHeader: {
       flexDirection: 'row',
-
       justifyContent:
         'space-between',
-
       alignItems: 'center',
     },
 
     candidateName: {
       fontSize: 16,
-
       fontWeight: '700',
-
       color: '#0f172a',
     },
 
@@ -1079,69 +1044,50 @@ const styles =
 
     candidateLabel: {
       fontSize: 13,
-
       color: '#64748b',
-
       marginTop: 2,
     },
 
     selectedBadge: {
       backgroundColor:
         '#2563eb',
-
       borderRadius: 10,
-
       paddingHorizontal: 10,
-
       paddingVertical: 5,
     },
 
     selectedBadgeText: {
       color: '#ffffff',
-
       fontWeight: '700',
-
       fontSize: 11,
     },
 
     candidatePurpose: {
       color: '#64748b',
-
       fontSize: 12,
-
       lineHeight: 17,
-
       marginTop: 8,
     },
 
     candidateMetrics: {
       flexDirection: 'row',
-
       flexWrap: 'wrap',
-
       gap: 12,
-
       marginTop: 10,
     },
 
     metricText: {
       color: '#334155',
-
       fontSize: 12,
-
       fontWeight: '600',
     },
 
     runButton: {
       backgroundColor:
         '#2563eb',
-
       borderRadius: 14,
-
       paddingVertical: 16,
-
       alignItems: 'center',
-
       marginBottom: 16,
     },
 
@@ -1152,121 +1098,93 @@ const styles =
 
     runButtonContent: {
       flexDirection: 'row',
-
       alignItems: 'center',
-
       gap: 10,
     },
 
     runButtonText: {
       color: '#ffffff',
-
       fontSize: 16,
-
       fontWeight: '700',
     },
 
     errorBox: {
       backgroundColor:
         '#fef2f2',
-
       borderWidth: 1,
-
-      borderColor: '#fecaca',
-
+      borderColor:
+        '#fecaca',
       borderRadius: 12,
-
       padding: 12,
     },
 
     errorBoxStandalone: {
       backgroundColor:
         '#fef2f2',
-
       borderWidth: 1,
-
-      borderColor: '#fecaca',
-
+      borderColor:
+        '#fecaca',
       borderRadius: 12,
-
       padding: 12,
-
       marginBottom: 16,
     },
 
     errorTitle: {
       color: '#991b1b',
-
       fontWeight: '700',
-
       marginBottom: 4,
     },
 
     errorText: {
       color: '#b91c1c',
-
       fontSize: 13,
-
       lineHeight: 18,
     },
 
     retryButton: {
       backgroundColor:
         '#dc2626',
-
       borderRadius: 10,
-
       paddingVertical: 10,
-
       marginTop: 10,
-
       alignItems: 'center',
     },
 
     retryButtonText: {
       color: '#ffffff',
-
       fontWeight: '700',
     },
 
     predictedClass: {
       fontSize: 44,
-
       fontWeight: '800',
-
-      textAlign: 'center',
+      textAlign:
+        'center',
     },
 
     predictedName: {
       color: '#64748b',
-
-      textAlign: 'center',
-
+      textAlign:
+        'center',
       marginBottom: 16,
-
       fontSize: 14,
     },
 
     statusRow: {
       flexDirection: 'row',
-
       justifyContent:
         'space-between',
-
       alignItems: 'center',
-
       marginBottom: 8,
     },
 
     statusLabel: {
       color: '#64748b',
-
       fontSize: 15,
     },
 
     statusValue: {
       fontSize: 15,
-
       fontWeight: '700',
     },
 
@@ -1276,83 +1194,63 @@ const styles =
 
     probabilityHeader: {
       flexDirection: 'row',
-
       alignItems: 'center',
-
       marginBottom: 6,
     },
 
     probabilityClass: {
       width: 24,
-
       fontWeight: '800',
-
       fontSize: 14,
     },
 
     probabilityName: {
       flex: 1,
-
       color: '#475569',
-
       fontSize: 12,
     },
 
     probabilityValue: {
       width: 62,
-
-      textAlign: 'right',
-
+      textAlign:
+        'right',
       color: '#0f172a',
-
       fontWeight: '700',
-
       fontSize: 12,
     },
 
     barBackground: {
       height: 10,
-
       backgroundColor:
         '#e2e8f0',
-
       borderRadius: 5,
-
       overflow: 'hidden',
     },
 
     barFill: {
       height: '100%',
-
       borderRadius: 5,
     },
 
     realInferenceNotice: {
       backgroundColor:
         '#f0fdf4',
-
       borderWidth: 1,
-
-      borderColor: '#bbf7d0',
-
+      borderColor:
+        '#bbf7d0',
       borderRadius: 12,
-
       padding: 14,
     },
 
     realInferenceTitle: {
       color: '#166534',
-
       fontWeight: '700',
-
       marginBottom: 4,
     },
 
     realInferenceText: {
       color: '#15803d',
-
       fontSize: 13,
-
       lineHeight: 19,
     },
   });
