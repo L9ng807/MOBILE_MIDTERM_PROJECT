@@ -18,9 +18,13 @@ import MetricItem from '../components/MetricItem';
 import SectionCard from '../components/SectionCard';
 import StatusBadge from '../components/StatusBadge';
 
-import { API_BASE_URL } from '../config/api';
+import {
+  getSystemStatus,
+} from '../services/systemApi';
 
-import { getSystemStatus } from '../services/systemApi';
+import {
+  useConnectionStore,
+} from '../store/useConnectionStore';
 
 import type {
   SystemStatusResponse,
@@ -33,25 +37,55 @@ import {
 } from '../types/ecg';
 
 export default function DashboardScreen() {
-  const [status, setStatus] =
+  const backendUrl =
+    useConnectionStore(
+      (state) =>
+        state.backendUrl,
+    );
+
+  const hasHydrated =
+    useConnectionStore(
+      (state) =>
+        state.hasHydrated,
+    );
+
+  const [
+    status,
+    setStatus,
+  ] =
     useState<SystemStatusResponse | null>(
       null,
     );
 
-  const [loading, setLoading] =
+  const [
+    loading,
+    setLoading,
+  ] =
     useState(true);
 
-  const [refreshing, setRefreshing] =
+  const [
+    refreshing,
+    setRefreshing,
+  ] =
     useState(false);
 
-  const [error, setError] =
-    useState<string | null>(null);
+  const [
+    error,
+    setError,
+  ] =
+    useState<string | null>(
+      null,
+    );
 
   const loadStatus =
     useCallback(
       async (
         isRefresh = false,
       ) => {
+        if (!hasHydrated) {
+          return;
+        }
+
         if (isRefresh) {
           setRefreshing(true);
         } else {
@@ -62,10 +96,16 @@ export default function DashboardScreen() {
 
         try {
           const response =
-            await getSystemStatus();
+            await getSystemStatus(
+              backendUrl,
+            );
 
-          setStatus(response);
-        } catch (requestError) {
+          setStatus(
+            response,
+          );
+        } catch (
+          requestError
+        ) {
           setStatus(null);
 
           if (
@@ -85,18 +125,27 @@ export default function DashboardScreen() {
           setRefreshing(false);
         }
       },
-      [],
+      [
+        backendUrl,
+        hasHydrated,
+      ],
     );
 
   useEffect(() => {
-    loadStatus();
-  }, [loadStatus]);
+    if (hasHydrated) {
+      loadStatus();
+    }
+  }, [
+    hasHydrated,
+    loadStatus,
+  ]);
 
   const backendOnline =
     status !== null;
 
   const datasetConnected =
-    status?.dataset.connected ??
+    status?.dataset
+      .connected ??
     false;
 
   const tensorflowAvailable =
@@ -110,56 +159,80 @@ export default function DashboardScreen() {
     false;
 
   const pynqConfigured =
-    status?.pynq_configured ??
+    status
+      ?.pynq_configured ??
     false;
 
   const modelsFound =
-    status?.runtime.models_found ??
+    status?.runtime
+      .models_found ??
     0;
 
   const modelsTotal =
-    status?.runtime.models_total ??
+    status?.runtime
+      .models_total ??
     0;
 
-  const modelIds = status
-    ? Object.keys(
-        status.runtime.model_paths,
-      ).sort(
-        (first, second) =>
-          Number(first) -
-          Number(second),
-      )
-    : [];
+  const modelIds =
+    status
+      ? Object.keys(
+          status.runtime
+            .model_paths,
+        ).sort(
+          (
+            first,
+            second,
+          ) =>
+            Number(first) -
+            Number(second),
+        )
+      : [];
 
   return (
     <ScrollView
-      style={styles.container}
+      style={
+        styles.container
+      }
       contentContainerStyle={
         styles.content
       }
       refreshControl={
         <RefreshControl
-          refreshing={refreshing}
+          refreshing={
+            refreshing
+          }
           onRefresh={() =>
             loadStatus(true)
           }
         />
       }
     >
-      <Text style={styles.title}>
+      <Text
+        style={styles.title}
+      >
         Hardware-Aware ECG
       </Text>
 
-      <Text style={styles.subtitle}>
+      <Text
+        style={
+          styles.subtitle
+        }
+      >
         ECG Analysis &
         Hardware-Aware NAS
       </Text>
 
       <SectionCard title="Backend Connection">
         <View
-          style={styles.statusRow}
+          style={
+            styles.statusRow
+          }
         >
-          <Text style={styles.label}>
+          <Text
+            style={
+              styles.label
+            }
+          >
             Backend
           </Text>
 
@@ -177,12 +250,19 @@ export default function DashboardScreen() {
 
         <InfoRow
           label="Server"
-          value={API_BASE_URL}
+          value={
+            hasHydrated
+              ? backendUrl
+              : 'Loading...'
+          }
         />
 
-        {loading && (
+        {loading &&
+          hasHydrated && (
           <Text
-            style={styles.infoText}
+            style={
+              styles.infoText
+            }
           >
             Checking backend...
           </Text>
@@ -190,7 +270,9 @@ export default function DashboardScreen() {
 
         {error && (
           <View
-            style={styles.errorBox}
+            style={
+              styles.errorBox
+            }
           >
             <Text
               style={
@@ -232,15 +314,22 @@ export default function DashboardScreen() {
         <InfoRow
           label="Dataset"
           value={
-            status?.dataset.mode ??
+            status?.dataset
+              .mode ??
             'Unknown'
           }
         />
 
         <View
-          style={styles.statusRow}
+          style={
+            styles.statusRow
+          }
         >
-          <Text style={styles.label}>
+          <Text
+            style={
+              styles.label
+            }
+          >
             Dataset Connection
           </Text>
 
@@ -257,9 +346,15 @@ export default function DashboardScreen() {
         </View>
 
         <View
-          style={styles.statusRow}
+          style={
+            styles.statusRow
+          }
         >
-          <Text style={styles.label}>
+          <Text
+            style={
+              styles.label
+            }
+          >
             TensorFlow
           </Text>
 
@@ -276,9 +371,15 @@ export default function DashboardScreen() {
         </View>
 
         <View
-          style={styles.statusRow}
+          style={
+            styles.statusRow
+          }
         >
-          <Text style={styles.label}>
+          <Text
+            style={
+              styles.label
+            }
+          >
             NAS Backend
           </Text>
 
@@ -288,14 +389,22 @@ export default function DashboardScreen() {
                 ? 'Ready'
                 : 'Not Ready'
             }
-            online={nasReady}
+            online={
+              nasReady
+            }
           />
         </View>
 
         <View
-          style={styles.statusRow}
+          style={
+            styles.statusRow
+          }
         >
-          <Text style={styles.label}>
+          <Text
+            style={
+              styles.label
+            }
+          >
             PYNQ
           </Text>
 
@@ -314,7 +423,9 @@ export default function DashboardScreen() {
 
       <SectionCard title="Inference Runtime">
         <View
-          style={styles.metricRow}
+          style={
+            styles.metricRow
+          }
         >
           <MetricItem
             value={`${modelsFound}`}
@@ -336,9 +447,12 @@ export default function DashboardScreen() {
           />
         </View>
 
-        {modelIds.length > 0 && (
+        {modelIds.length >
+          0 && (
           <View
-            style={styles.modelList}
+            style={
+              styles.modelList
+            }
           >
             <Text
               style={
@@ -352,7 +466,9 @@ export default function DashboardScreen() {
             {modelIds.map(
               (modelId) => (
                 <View
-                  key={modelId}
+                  key={
+                    modelId
+                  }
                   style={
                     styles.modelItem
                   }
@@ -380,16 +496,19 @@ export default function DashboardScreen() {
         <InfoRow
           label="Dataset"
           value={
-            status?.dataset.mode ??
+            status?.dataset
+              .mode ??
             'MIT-BIH'
           }
         />
 
         <InfoRow
           label="Classes"
-          value={ECG_CLASSES.join(
-            ' / ',
-          )}
+          value={
+            ECG_CLASSES.join(
+              ' / ',
+            )
+          }
         />
 
         <InfoRow
@@ -403,7 +522,11 @@ export default function DashboardScreen() {
         />
       </SectionCard>
 
-      <View style={styles.notice}>
+      <View
+        style={
+          styles.notice
+        }
+      >
         <Text
           style={
             styles.noticeTitle
@@ -417,10 +540,10 @@ export default function DashboardScreen() {
             styles.noticeText
           }
         >
-          System status on this
-          screen is loaded from the
-          ECG NAS Flask backend. Pull
-          down to refresh.
+          The backend URL can now
+          be changed and saved from
+          Settings. Pull down to
+          refresh this status.
         </Text>
       </View>
     </ScrollView>
@@ -431,7 +554,8 @@ const styles =
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: '#f8fafc',
+      backgroundColor:
+        '#f8fafc',
     },
 
     content: {
@@ -481,9 +605,11 @@ const styles =
       marginTop: 12,
       padding: 12,
       borderRadius: 12,
-      backgroundColor: '#fef2f2',
+      backgroundColor:
+        '#fef2f2',
       borderWidth: 1,
-      borderColor: '#fecaca',
+      borderColor:
+        '#fecaca',
     },
 
     errorTitle: {
@@ -500,7 +626,8 @@ const styles =
 
     retryButton: {
       marginTop: 12,
-      backgroundColor: '#dc2626',
+      backgroundColor:
+        '#dc2626',
       borderRadius: 10,
       paddingVertical: 10,
       alignItems: 'center',
@@ -515,7 +642,8 @@ const styles =
       marginTop: 18,
       paddingTop: 14,
       borderTopWidth: 1,
-      borderTopColor: '#e2e8f0',
+      borderTopColor:
+        '#e2e8f0',
     },
 
     modelListTitle: {
@@ -540,7 +668,8 @@ const styles =
     },
 
     notice: {
-      backgroundColor: '#eff6ff',
+      backgroundColor:
+        '#eff6ff',
       borderRadius: 12,
       padding: 14,
     },

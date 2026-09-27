@@ -1,7 +1,10 @@
 import {
-  API_BASE_URL,
   API_TIMEOUT_MS,
 } from '../config/api';
+
+import {
+  useConnectionStore,
+} from '../store/useConnectionStore';
 
 export class ApiError extends Error {
   status?: number;
@@ -20,11 +23,49 @@ export class ApiError extends Error {
   }
 }
 
+export function normalizeBaseUrl(
+  value: string,
+): string {
+  return value
+    .trim()
+    .replace(/\/+$/, '');
+}
+
+export function isValidBackendUrl(
+  value: string,
+): boolean {
+  const normalized =
+    normalizeBaseUrl(
+      value,
+    );
+
+  return /^https?:\/\/[^\s]+$/i.test(
+    normalized,
+  );
+}
+
+function getCurrentBaseUrl(): string {
+  return normalizeBaseUrl(
+    useConnectionStore
+      .getState()
+      .backendUrl,
+  );
+}
+
+function normalizePath(
+  path: string,
+): string {
+  return path.startsWith('/')
+    ? path
+    : `/${path}`;
+}
+
 async function request<T>(
   path: string,
   options?: RequestInit,
   timeoutMs:
     number = API_TIMEOUT_MS,
+  baseUrlOverride?: string,
 ): Promise<T> {
   const controller =
     new AbortController();
@@ -37,10 +78,22 @@ async function request<T>(
       timeoutMs,
     );
 
+  const baseUrl =
+    baseUrlOverride
+      ? normalizeBaseUrl(
+          baseUrlOverride,
+        )
+      : getCurrentBaseUrl();
+
+  const requestUrl =
+    `${baseUrl}${normalizePath(
+      path,
+    )}`;
+
   try {
     const response =
       await fetch(
-        `${API_BASE_URL}${path}`,
+        requestUrl,
         {
           ...options,
 
@@ -49,9 +102,7 @@ async function request<T>(
         },
       );
 
-    if (
-      !response.ok
-    ) {
+    if (!response.ok) {
       let message =
         `API request failed with status ${response.status}`;
 
@@ -120,6 +171,7 @@ export function apiGet<T>(
   path: string,
   timeoutMs:
     number = API_TIMEOUT_MS,
+  baseUrlOverride?: string,
 ): Promise<T> {
   return request<T>(
     path,
@@ -127,6 +179,7 @@ export function apiGet<T>(
       method: 'GET',
     },
     timeoutMs,
+    baseUrlOverride,
   );
 }
 
@@ -138,6 +191,7 @@ export function apiPost<
   body: TBody,
   timeoutMs:
     number = API_TIMEOUT_MS,
+  baseUrlOverride?: string,
 ): Promise<TResponse> {
   return request<TResponse>(
     path,
@@ -155,5 +209,6 @@ export function apiPost<
         ),
     },
     timeoutMs,
+    baseUrlOverride,
   );
 }
