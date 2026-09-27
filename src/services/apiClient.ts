@@ -12,35 +12,46 @@ export class ApiError extends Error {
   ) {
     super(message);
 
-    this.name = 'ApiError';
-    this.status = status;
+    this.name =
+      'ApiError';
+
+    this.status =
+      status;
   }
 }
 
 async function request<T>(
   path: string,
   options?: RequestInit,
+  timeoutMs:
+    number = API_TIMEOUT_MS,
 ): Promise<T> {
   const controller =
     new AbortController();
 
-  const timeoutId = setTimeout(
-    () => {
-      controller.abort();
-    },
-    API_TIMEOUT_MS,
-  );
-
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}${path}`,
-      {
-        ...options,
-        signal: controller.signal,
+  const timeoutId =
+    setTimeout(
+      () => {
+        controller.abort();
       },
+      timeoutMs,
     );
 
-    if (!response.ok) {
+  try {
+    const response =
+      await fetch(
+        `${API_BASE_URL}${path}`,
+        {
+          ...options,
+
+          signal:
+            controller.signal,
+        },
+      );
+
+    if (
+      !response.ok
+    ) {
       let message =
         `API request failed with status ${response.status}`;
 
@@ -48,11 +59,14 @@ async function request<T>(
         const responseText =
           await response.text();
 
-        if (responseText) {
-          message = responseText;
+        if (
+          responseText
+        ) {
+          message =
+            responseText;
         }
       } catch {
-        // Keep the default message.
+        // Keep default message.
       }
 
       throw new ApiError(
@@ -61,39 +75,59 @@ async function request<T>(
       );
     }
 
-    return (await response.json()) as T;
+    return (
+      await response.json()
+    ) as T;
   } catch (error) {
     if (
-      error instanceof Error &&
-      error.name === 'AbortError'
+      error instanceof
+        Error &&
+      error.name ===
+        'AbortError'
     ) {
       throw new ApiError(
-        `Request timed out after ${API_TIMEOUT_MS} ms`,
+        `Request timed out after ${timeoutMs} ms`,
       );
     }
 
-    if (error instanceof ApiError) {
+    if (
+      error instanceof
+      ApiError
+    ) {
       throw error;
     }
 
-    if (error instanceof Error) {
-      throw new ApiError(error.message);
+    if (
+      error instanceof
+      Error
+    ) {
+      throw new ApiError(
+        error.message,
+      );
     }
 
     throw new ApiError(
       'Unknown API error',
     );
   } finally {
-    clearTimeout(timeoutId);
+    clearTimeout(
+      timeoutId,
+    );
   }
 }
 
 export function apiGet<T>(
   path: string,
+  timeoutMs:
+    number = API_TIMEOUT_MS,
 ): Promise<T> {
-  return request<T>(path, {
-    method: 'GET',
-  });
+  return request<T>(
+    path,
+    {
+      method: 'GET',
+    },
+    timeoutMs,
+  );
 }
 
 export function apiPost<
@@ -102,15 +136,24 @@ export function apiPost<
 >(
   path: string,
   body: TBody,
+  timeoutMs:
+    number = API_TIMEOUT_MS,
 ): Promise<TResponse> {
-  return request<TResponse>(path, {
-    method: 'POST',
+  return request<TResponse>(
+    path,
+    {
+      method: 'POST',
 
-    headers: {
-      'Content-Type':
-        'application/json',
+      headers: {
+        'Content-Type':
+          'application/json',
+      },
+
+      body:
+        JSON.stringify(
+          body,
+        ),
     },
-
-    body: JSON.stringify(body),
-  });
+    timeoutMs,
+  );
 }

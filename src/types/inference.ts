@@ -20,7 +20,7 @@ export interface SoftwareInferenceRequest {
   beat: InferenceBeatPayload;
 }
 
-export interface BackendInferenceResult {
+export interface BackendPredictionResult {
   backend: string;
 
   predicted_class: ECGClass;
@@ -35,7 +35,10 @@ export interface BackendInferenceResult {
   latency_ms: number;
 
   model_path: string;
+}
 
+export interface BackendInferenceResult
+  extends BackendPredictionResult {
   candidate: CandidateInfo;
 }
 
@@ -64,4 +67,36 @@ export interface InferenceDisplayResult {
   modelPath: string;
 
   candidate: CandidateInfo;
+}
+
+export interface SoftwareComparisonRequest {
+  beat: InferenceBeatPayload;
+}
+
+export interface SoftwareComparisonSuccessRow {
+  candidate: CandidateInfo;
+
+  result: BackendPredictionResult;
+
+  ok: true;
+}
+
+export interface SoftwareComparisonErrorRow {
+  candidate: CandidateInfo;
+
+  ok: false;
+
+  error: string;
+}
+
+export type SoftwareComparisonRow =
+  | SoftwareComparisonSuccessRow
+  | SoftwareComparisonErrorRow;
+
+export interface SoftwareComparisonResponse {
+  ok: boolean;
+
+  mode: string;
+
+  rows: SoftwareComparisonRow[];
 }

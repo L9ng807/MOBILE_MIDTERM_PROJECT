@@ -30,10 +30,15 @@ import {
   getDatasetRecord,
 } from '../services/ecgApi';
 
+import {
+  useAppStore,
+} from '../store/useAppStore';
+
 import type {
   DatasetSplit,
   ECGBeat,
   ECGClass,
+  ECGInferenceInput,
   ECGInputSource,
   ECGRecordResponse,
 } from '../types/ecg';
@@ -63,7 +68,9 @@ function createChartPoints(
       ) =>
         Math.max(
           maximum,
-          Math.abs(value),
+          Math.abs(
+            value,
+          ),
         ),
       0,
     );
@@ -79,7 +86,8 @@ function createChartPoints(
       ) => {
         const denominator =
           Math.max(
-            samples.length - 1,
+            samples.length -
+              1,
             1,
           );
 
@@ -89,7 +97,8 @@ function createChartPoints(
           CHART_WIDTH;
 
         const normalized =
-          maximumAmplitude === 0
+          maximumAmplitude ===
+          0
             ? 0
             : sample /
               maximumAmplitude;
@@ -112,6 +121,12 @@ export default function ECGViewerScreen() {
 
   const navigation =
     useNavigation<any>();
+
+  const setSelectedECG =
+    useAppStore(
+      (state) =>
+        state.setSelectedECG,
+    );
 
   const inputSource =
     (route.params
@@ -202,6 +217,7 @@ export default function ECGViewerScreen() {
         }
 
         setLoading(true);
+
         setError(null);
 
         try {
@@ -211,7 +227,10 @@ export default function ECGViewerScreen() {
               recordId,
             );
 
-          setRecord(response);
+          setRecord(
+            response,
+          );
+
           setBeatIndex(0);
         } catch (
           requestError
@@ -246,7 +265,9 @@ export default function ECGViewerScreen() {
   }, [loadRecord]);
 
   const uploadedBeats =
-    useMemo<ECGBeat[]>(
+    useMemo<
+      ECGBeat[]
+    >(
       () => {
         if (isDataset) {
           return [];
@@ -254,7 +275,8 @@ export default function ECGViewerScreen() {
 
         const beatCount =
           Math.floor(
-            uploadedSamples.length /
+            uploadedSamples
+              .length /
               MODEL_INPUT_SAMPLES,
           );
 
@@ -263,7 +285,6 @@ export default function ECGViewerScreen() {
             length:
               beatCount,
           },
-
           (
             _,
             index,
@@ -278,9 +299,12 @@ export default function ECGViewerScreen() {
 
             return {
               index,
+
               start,
+
               end:
                 end - 1,
+
               samples:
                 uploadedSamples.slice(
                   start,
@@ -298,7 +322,8 @@ export default function ECGViewerScreen() {
 
   const beats =
     isDataset
-      ? record?.beats ?? []
+      ? record?.beats ??
+        []
       : uploadedBeats;
 
   const currentBeat =
@@ -314,7 +339,8 @@ export default function ECGViewerScreen() {
       | undefined;
 
   const selectedSamples =
-    currentBeat?.samples ??
+    currentBeat
+      ?.samples ??
     [];
 
   const samplingRate =
@@ -366,27 +392,25 @@ export default function ECGViewerScreen() {
     );
   };
 
-  const analyzeBeat = () => {
-    if (
-      selectedSamples.length !==
-      MODEL_INPUT_SAMPLES
-    ) {
-      return;
-    }
+  const analyzeBeat =
+    () => {
+      if (
+        selectedSamples.length !==
+        MODEL_INPUT_SAMPLES
+      ) {
+        return;
+      }
 
-    navigation
-      .getParent()
-      ?.navigate(
-        'Inference',
+      const inferenceInput:
+        ECGInferenceInput =
         {
           recordId:
             displayRecord,
 
           beatIndex:
-            currentBeat?.index ??
+            currentBeat
+              ?.index ??
             beatIndex,
-
-          referenceLabel,
 
           samplingRate,
 
@@ -395,13 +419,25 @@ export default function ECGViewerScreen() {
 
           inputSource,
 
+          referenceLabel,
+
           split:
             isDataset
               ? split
               : undefined,
-        },
+        };
+
+      setSelectedECG(
+        inferenceInput,
       );
-  };
+
+      navigation
+        .getParent()
+        ?.navigate(
+          'Inference',
+          inferenceInput,
+        );
+    };
 
   if (
     isDataset &&
@@ -418,7 +454,8 @@ export default function ECGViewerScreen() {
             styles.centeredTitle
           }
         >
-          Loading ECG record...
+          Loading ECG
+          record...
         </Text>
 
         <Text
@@ -426,8 +463,8 @@ export default function ECGViewerScreen() {
             styles.centeredText
           }
         >
-          {split.toUpperCase()} /{' '}
-          {recordId}
+          {split.toUpperCase()}{' '}
+          / {recordId}
         </Text>
       </View>
     );
@@ -448,7 +485,8 @@ export default function ECGViewerScreen() {
             styles.errorTitle
           }
         >
-          Unable to load record
+          Unable to load
+          record
         </Text>
 
         <Text
@@ -489,7 +527,9 @@ export default function ECGViewerScreen() {
       }
     >
       <Text
-        style={styles.title}
+        style={
+          styles.title
+        }
       >
         ECG Viewer
       </Text>
@@ -541,7 +581,9 @@ export default function ECGViewerScreen() {
         {record && (
           <InfoRow
             label="Source Dataset"
-            value={record.source}
+            value={
+              record.source
+            }
           />
         )}
       </SectionCard>
@@ -562,7 +604,8 @@ export default function ECGViewerScreen() {
                   previousBeat
                 }
                 disabled={
-                  totalBeats <= 1
+                  totalBeats <=
+                  1
                 }
               >
                 <Text
@@ -626,7 +669,8 @@ export default function ECGViewerScreen() {
                   nextBeat
                 }
                 disabled={
-                  totalBeats <= 1
+                  totalBeats <=
+                  1
                 }
               >
                 <Text
@@ -762,8 +806,8 @@ export default function ECGViewerScreen() {
               }
             >
               {isDataset
-                ? 'This heartbeat is loaded from the MIT-BIH backend. The backend crops or pads it to 320 samples and applies z-score normalization.'
-                : 'Uploaded CSV data is divided locally into complete 320-sample heartbeat segments. Ground-truth labels are not available unless provided by a future upload format.'}
+                ? 'This heartbeat is loaded from the MIT-BIH backend. Analyze Beat also stores the selected heartbeat for Inference and Performance comparison.'
+                : 'Uploaded CSV data is divided locally into complete 320-sample heartbeat segments. Analyze Beat stores the selected segment for inference and model comparison.'}
             </Text>
           </View>
         </>
@@ -791,72 +835,102 @@ const styles =
   StyleSheet.create({
     container: {
       flex: 1,
+
       backgroundColor:
         '#f8fafc',
     },
 
     content: {
       padding: 20,
+
       paddingBottom: 40,
     },
 
     centered: {
       flex: 1,
+
       backgroundColor:
         '#f8fafc',
-      alignItems: 'center',
+
+      alignItems:
+        'center',
+
       justifyContent:
         'center',
+
       padding: 24,
     },
 
     centeredTitle: {
       fontSize: 18,
+
       fontWeight: '700',
+
       color: '#0f172a',
+
       marginBottom: 6,
     },
 
     centeredText: {
       color: '#64748b',
-      textAlign: 'center',
+
+      textAlign:
+        'center',
+
       lineHeight: 20,
     },
 
     title: {
       fontSize: 28,
+
       fontWeight: '700',
+
       color: '#0f172a',
     },
 
     subtitle: {
       fontSize: 14,
+
       color: '#64748b',
+
       marginTop: 4,
+
       marginBottom: 20,
     },
 
     beatSelector: {
       flexDirection: 'row',
-      alignItems: 'center',
+
+      alignItems:
+        'center',
+
       marginBottom: 18,
     },
 
     arrowButton: {
       width: 46,
+
       height: 46,
+
       borderRadius: 12,
+
       backgroundColor:
         '#eff6ff',
+
       justifyContent:
         'center',
-      alignItems: 'center',
+
+      alignItems:
+        'center',
     },
 
     arrowText: {
       color: '#2563eb',
+
       fontSize: 24,
+
       fontWeight: '700',
+
       lineHeight: 28,
     },
 
@@ -866,45 +940,64 @@ const styles =
 
     beatBox: {
       flex: 1,
-      alignItems: 'center',
+
+      alignItems:
+        'center',
     },
 
     beatValue: {
       fontSize: 20,
+
       fontWeight: '700',
+
       color: '#0f172a',
     },
 
     beatLabel: {
       color: '#64748b',
+
       fontSize: 12,
+
       marginTop: 4,
     },
 
     chart: {
       height:
         CHART_HEIGHT,
+
       backgroundColor:
         '#f8fafc',
+
       borderRadius: 12,
+
       overflow: 'hidden',
+
       justifyContent:
         'center',
     },
 
     chartNote: {
-      textAlign: 'center',
+      textAlign:
+        'center',
+
       color: '#64748b',
+
       fontSize: 12,
+
       marginTop: 8,
     },
 
     primaryButton: {
       backgroundColor:
         '#2563eb',
+
       borderRadius: 14,
+
       paddingVertical: 16,
-      alignItems: 'center',
+
+      alignItems:
+        'center',
+
       marginBottom: 16,
     },
 
@@ -915,48 +1008,64 @@ const styles =
 
     primaryButtonText: {
       color: '#ffffff',
+
       fontSize: 16,
+
       fontWeight: '700',
     },
 
     notice: {
       backgroundColor:
         '#eff6ff',
+
       borderRadius: 12,
+
       padding: 14,
     },
 
     noticeText: {
       color: '#1e40af',
+
       fontSize: 13,
+
       lineHeight: 19,
     },
 
     emptyBox: {
       backgroundColor:
         '#ffffff',
+
       padding: 20,
+
       borderRadius: 14,
     },
 
     errorTitle: {
       color: '#b91c1c',
+
       fontSize: 18,
+
       fontWeight: '700',
+
       marginBottom: 8,
     },
 
     retryButton: {
       marginTop: 16,
+
       backgroundColor:
         '#2563eb',
+
       paddingVertical: 12,
+
       paddingHorizontal: 24,
+
       borderRadius: 10,
     },
 
     retryButtonText: {
       color: '#ffffff',
+
       fontWeight: '700',
     },
   });

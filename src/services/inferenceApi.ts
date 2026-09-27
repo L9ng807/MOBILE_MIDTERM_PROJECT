@@ -13,6 +13,8 @@ import type {
 import type {
   InferenceBeatPayload,
   InferenceDisplayResult,
+  SoftwareComparisonRequest,
+  SoftwareComparisonResponse,
   SoftwareInferenceRequest,
   SoftwareInferenceResponse,
 } from '../types/inference';
@@ -21,7 +23,8 @@ export async function runSoftwareInference(
   candidateId: number,
   beat: InferenceBeatPayload,
 ): Promise<InferenceDisplayResult> {
-  const requestBody: SoftwareInferenceRequest =
+  const requestBody:
+    SoftwareInferenceRequest =
     {
       candidate_id:
         candidateId,
@@ -80,18 +83,54 @@ export async function runSoftwareInference(
         .predicted_class,
 
     confidencePercent:
-      backendResult.confidence *
+      backendResult
+        .confidence *
       100,
 
     probabilitiesPercent,
 
     latencyMs:
-      backendResult.latency_ms,
+      backendResult
+        .latency_ms,
 
     modelPath:
-      backendResult.model_path,
+      backendResult
+        .model_path,
 
     candidate:
-      backendResult.candidate,
+      backendResult
+        .candidate,
   };
+}
+
+export async function compareSoftwareModels(
+  beat: InferenceBeatPayload,
+): Promise<SoftwareComparisonResponse> {
+  const body:
+    SoftwareComparisonRequest =
+    {
+      beat,
+    };
+
+  const response =
+    await apiPost<
+      SoftwareComparisonResponse,
+      SoftwareComparisonRequest
+    >(
+      '/api/compare/software',
+      body,
+
+      // Comparing all four
+      // models can take longer
+      // than one inference.
+      30000,
+    );
+
+  if (!response.ok) {
+    throw new Error(
+      'Software model comparison failed.',
+    );
+  }
+
+  return response;
 }
