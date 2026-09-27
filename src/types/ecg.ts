@@ -1,10 +1,36 @@
+export type ECGClass = 'N' | 'S' | 'V' | 'F';
+
+export type ECGInputSource = 'sample' | 'upload';
+
 export interface ECGSegment {
   timestamp: number;
   samples: number[];
   sampleRate: number;
 }
 
-export type ECGClass = 'N' | 'S' | 'V' | 'F';
+export interface ECGRecordData {
+  recordId: string;
+  samplingRate: number;
+  heartRate: number;
+  label: ECGClass;
+  samples: number[];
+}
+
+export interface UploadedECGFile {
+  name: string;
+  uri: string;
+  samplingRate: number;
+  samples: number[];
+}
+
+export interface ECGInferenceInput {
+  recordId: string;
+  beatIndex: number;
+  samplingRate: number;
+  samples: number[];
+  inputSource: ECGInputSource;
+  referenceLabel?: ECGClass;
+}
 
 export interface InferenceResult {
   predictedClass: ECGClass;

@@ -13,6 +13,10 @@ import { File } from 'expo-file-system';
 
 import InfoRow from '../components/InfoRow';
 import SectionCard from '../components/SectionCard';
+import type {
+  ECGInputSource,
+  UploadedECGFile,
+} from '../types/ecg';
 
 const records = [
   { recordId: '100', referenceLabel: 'N' },
@@ -22,14 +26,6 @@ const records = [
   { recordId: '104', referenceLabel: 'N' },
   { recordId: '105', referenceLabel: 'F' },
 ];
-
-type InputSource = 'sample' | 'upload';
-
-type SelectedECGFile = {
-  name: string;
-  uri: string;
-  samples: number[];
-};
 
 const parseECGSamples = (content: string): number[] => {
   const numericRows = content
@@ -59,10 +55,12 @@ export default function ECGInputScreen() {
   const navigation = useNavigation<any>();
 
   const [recordIndex, setRecordIndex] = useState(0);
+
   const [inputSource, setInputSource] =
-    useState<InputSource>('sample');
+    useState<ECGInputSource>('sample');
+
   const [selectedFile, setSelectedFile] =
-    useState<SelectedECGFile | null>(null);
+    useState<UploadedECGFile | null>(null);
 
   const currentRecord = records[recordIndex];
 
@@ -106,6 +104,7 @@ export default function ECGInputScreen() {
           'Invalid file type',
           'Please select an ECG file in CSV format.',
         );
+
         return;
       }
 
@@ -120,12 +119,14 @@ export default function ECGInputScreen() {
           'Invalid ECG data',
           'The CSV file must contain at least 80 numeric samples.',
         );
+
         return;
       }
 
       setSelectedFile({
         name: asset.name,
         uri: asset.uri,
+        samplingRate: 360,
         samples,
       });
     } catch {
@@ -145,6 +146,7 @@ export default function ECGInputScreen() {
           'ECG file required',
           'Please select an ECG file before loading.',
         );
+
         return;
       }
 
@@ -156,7 +158,7 @@ export default function ECGInputScreen() {
         inputSource: 'upload',
         uploadedFileName: selectedFile.name,
         uploadedSamples: selectedFile.samples,
-        samplingRate: 360,
+        samplingRate: selectedFile.samplingRate,
       });
 
       return;

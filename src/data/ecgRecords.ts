@@ -1,12 +1,7 @@
-export type ECGClass = 'N' | 'S' | 'V' | 'F';
-
-export interface ECGRecordData {
-  recordId: string;
-  samplingRate: number;
-  heartRate: number;
-  label: ECGClass;
-  samples: number[];
-}
+import {
+  ECGClass,
+  ECGRecordData,
+} from '../types/ecg';
 
 const BEAT_SIZE = 80;
 const TOTAL_SAMPLES = 320;
@@ -29,11 +24,11 @@ function gaussian(
 function generateNormalBeat(position: number) {
   let value = 0;
 
-  value += gaussian(position, 14, 4, 6);    // P
-  value += gaussian(position, 30, 1.5, -12); // Q
-  value += gaussian(position, 33, 1.2, 65);  // R
-  value += gaussian(position, 36, 1.5, -20); // S
-  value += gaussian(position, 55, 7, 15);    // T
+  value += gaussian(position, 14, 4, 6);
+  value += gaussian(position, 30, 1.5, -12);
+  value += gaussian(position, 33, 1.2, 65);
+  value += gaussian(position, 36, 1.5, -20);
+  value += gaussian(position, 55, 7, 15);
 
   return value;
 }
