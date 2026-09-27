@@ -1,4 +1,9 @@
-import { useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 import {
   Pressable,
@@ -11,7 +16,6 @@ import {
 import Svg, {
   Line,
   Polyline,
-  Rect,
 } from 'react-native-svg';
 
 import {
@@ -22,54 +26,109 @@ import {
 import InfoRow from '../components/InfoRow';
 import SectionCard from '../components/SectionCard';
 
-import { getECGRecord } from '../data/ecgRecords';
-
 import {
-  MODEL_INPUT_SAMPLES,
-  MIT_BIH_SAMPLING_RATE,
+  getDatasetRecord,
+} from '../services/ecgApi';
+
+import type {
+  DatasetSplit,
+  ECGBeat,
+  ECGClass,
+  ECGInputSource,
+  ECGRecordResponse,
 } from '../types/ecg';
 
-const MAX_CHART_POINTS = 800;
+import {
+  MIT_BIH_SAMPLING_RATE,
+  MODEL_INPUT_SAMPLES,
+} from '../types/ecg';
 
-const reduceChartSamples = (
+const CHART_WIDTH = 320;
+const CHART_HEIGHT = 180;
+
+function createChartPoints(
   samples: number[],
-) => {
+): string {
   if (
-    samples.length <= MAX_CHART_POINTS
+    samples.length === 0
   ) {
-    return samples;
+    return '';
   }
 
-  return Array.from(
-    {
-      length: MAX_CHART_POINTS,
-    },
+  const maximumAmplitude =
+    samples.reduce(
+      (
+        maximum,
+        value,
+      ) =>
+        Math.max(
+          maximum,
+          Math.abs(value),
+        ),
+      0,
+    );
 
-    (_, index) => {
-      const sourceIndex =
-        Math.round(
-          (index *
-            (samples.length - 1)) /
-            (MAX_CHART_POINTS - 1),
-        );
+  const centerY =
+    CHART_HEIGHT / 2;
 
-      return samples[sourceIndex];
-    },
-  );
-};
+  return samples
+    .map(
+      (
+        sample,
+        index,
+      ) => {
+        const denominator =
+          Math.max(
+            samples.length - 1,
+            1,
+          );
+
+        const x =
+          (index /
+            denominator) *
+          CHART_WIDTH;
+
+        const normalized =
+          maximumAmplitude === 0
+            ? 0
+            : sample /
+              maximumAmplitude;
+
+        const y =
+          centerY -
+          normalized *
+            (CHART_HEIGHT *
+              0.4);
+
+        return `${x},${y}`;
+      },
+    )
+    .join(' ');
+}
 
 export default function ECGViewerScreen() {
-  const route = useRoute<any>();
+  const route =
+    useRoute<any>();
 
   const navigation =
     useNavigation<any>();
 
-  const recordId =
-    route.params?.recordId ?? '100';
-
   const inputSource =
-    route.params?.inputSource ??
-    'sample';
+    (route.params
+      ?.inputSource ??
+      'dataset') as
+      ECGInputSource;
+
+  const recordId =
+    (route.params
+      ?.recordId ??
+      '') as string;
+
+  const split =
+    (route.params
+      ?.split ??
+      'test') as
+      DatasetSplit;
 
   const uploadedFileName =
     route.params
@@ -78,7 +137,8 @@ export default function ECGViewerScreen() {
       | undefined;
 
   const uploadedSamplingRate =
-    route.params?.samplingRate as
+    route.params
+      ?.samplingRate as
       | number
       | undefined;
 
@@ -87,9 +147,12 @@ export default function ECGViewerScreen() {
       route.params
         ?.uploadedSamples,
     )
-      ? route.params.uploadedSamples.filter(
+      ? (
+          route.params
+            .uploadedSamples as unknown[]
+        ).filter(
           (
-            value: unknown,
+            value,
           ): value is number =>
             typeof value ===
               'number' &&
@@ -99,92 +162,207 @@ export default function ECGViewerScreen() {
         )
       : [];
 
-  const sampleRecord =
-    getECGRecord(
-      inputSource === 'sample'
-        ? recordId
-        : '100',
+  const [
+    record,
+    setRecord,
+  ] =
+    useState<ECGRecordResponse | null>(
+      null,
     );
 
-  const isUploaded =
-    inputSource === 'upload' &&
-    uploadedSamples.length >=
-      MODEL_INPUT_SAMPLES;
-
-  const samples = isUploaded
-    ? uploadedSamples
-    : sampleRecord.samples;
-
-  const displayRecordId =
-    isUploaded
-      ? uploadedFileName ??
-        recordId
-      : sampleRecord.recordId;
-
-  const samplingRate =
-    isUploaded
-      ? uploadedSamplingRate ??
-        MIT_BIH_SAMPLING_RATE
-      : sampleRecord.samplingRate;
-
-  const heartRate =
-    isUploaded
-      ? undefined
-      : sampleRecord.heartRate;
-
-  const referenceLabel =
-    isUploaded
-      ? undefined
-      : sampleRecord.label;
-
-  const [beatIndex, setBeatIndex] =
+  const [
+    beatIndex,
+    setBeatIndex,
+  ] =
     useState(0);
 
-  const totalBeats =
-    isUploaded
-      ? Math.max(
-          1,
-          Math.floor(
-            samples.length /
-              MODEL_INPUT_SAMPLES,
-          ),
-        )
-      : 1;
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(false);
 
-  const displayBeatNumber =
-    beatIndex + 1;
-
-  const segmentStart =
-    beatIndex *
-    MODEL_INPUT_SAMPLES;
-
-  const segmentEnd =
-    Math.min(
-      segmentStart +
-        MODEL_INPUT_SAMPLES,
-      samples.length,
+  const [
+    error,
+    setError,
+  ] =
+    useState<string | null>(
+      null,
     );
+
+  const isDataset =
+    inputSource ===
+    'dataset';
+
+  const loadRecord =
+    useCallback(
+      async () => {
+        if (!isDataset) {
+          return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+          const response =
+            await getDatasetRecord(
+              split,
+              recordId,
+            );
+
+          setRecord(response);
+          setBeatIndex(0);
+        } catch (
+          requestError
+        ) {
+          setRecord(null);
+
+          if (
+            requestError instanceof
+            Error
+          ) {
+            setError(
+              requestError.message,
+            );
+          } else {
+            setError(
+              'Unable to load ECG record.',
+            );
+          }
+        } finally {
+          setLoading(false);
+        }
+      },
+      [
+        isDataset,
+        recordId,
+        split,
+      ],
+    );
+
+  useEffect(() => {
+    loadRecord();
+  }, [loadRecord]);
+
+  const uploadedBeats =
+    useMemo<ECGBeat[]>(
+      () => {
+        if (isDataset) {
+          return [];
+        }
+
+        const beatCount =
+          Math.floor(
+            uploadedSamples.length /
+              MODEL_INPUT_SAMPLES,
+          );
+
+        return Array.from(
+          {
+            length:
+              beatCount,
+          },
+
+          (
+            _,
+            index,
+          ) => {
+            const start =
+              index *
+              MODEL_INPUT_SAMPLES;
+
+            const end =
+              start +
+              MODEL_INPUT_SAMPLES;
+
+            return {
+              index,
+              start,
+              end:
+                end - 1,
+              samples:
+                uploadedSamples.slice(
+                  start,
+                  end,
+                ),
+            };
+          },
+        );
+      },
+      [
+        isDataset,
+        uploadedSamples,
+      ],
+    );
+
+  const beats =
+    isDataset
+      ? record?.beats ?? []
+      : uploadedBeats;
+
+  const currentBeat =
+    beats[beatIndex];
+
+  const totalBeats =
+    beats.length;
+
+  const referenceLabel =
+    currentBeat
+      ?.label as
+      | ECGClass
+      | undefined;
 
   const selectedSamples =
-    samples.slice(
-      segmentStart,
-      segmentEnd,
+    currentBeat?.samples ??
+    [];
+
+  const samplingRate =
+    isDataset
+      ? MIT_BIH_SAMPLING_RATE
+      : uploadedSamplingRate ??
+        MIT_BIH_SAMPLING_RATE;
+
+  const displayRecord =
+    isDataset
+      ? recordId
+      : uploadedFileName ??
+        recordId;
+
+  const chartPoints =
+    createChartPoints(
+      selectedSamples,
     );
 
-  const previousBeat = () => {
-    setBeatIndex((current) =>
-      current === 0
-        ? totalBeats - 1
-        : current - 1,
-    );
-  };
+  const previousBeat =
+    () => {
+      if (
+        totalBeats <= 1
+      ) {
+        return;
+      }
+
+      setBeatIndex(
+        (current) =>
+          current === 0
+            ? totalBeats - 1
+            : current - 1,
+      );
+    };
 
   const nextBeat = () => {
-    setBeatIndex((current) =>
-      current ===
-      totalBeats - 1
-        ? 0
-        : current + 1,
+    if (
+      totalBeats <= 1
+    ) {
+      return;
+    }
+
+    setBeatIndex(
+      (current) =>
+        current ===
+        totalBeats - 1
+          ? 0
+          : current + 1,
     );
   };
 
@@ -202,14 +380,11 @@ export default function ECGViewerScreen() {
         'Inference',
         {
           recordId:
-            displayRecordId,
+            displayRecord,
 
-          /*
-           * Keep beatIndex zero-based
-           * because the leader backend
-           * also returns beat.index.
-           */
-          beatIndex,
+          beatIndex:
+            currentBeat?.index ??
+            beatIndex,
 
           referenceLabel,
 
@@ -219,119 +394,139 @@ export default function ECGViewerScreen() {
             selectedSamples,
 
           inputSource,
+
+          split:
+            isDataset
+              ? split
+              : undefined,
         },
       );
   };
 
-  const chartWidth = 320;
+  if (
+    isDataset &&
+    loading
+  ) {
+    return (
+      <View
+        style={
+          styles.centered
+        }
+      >
+        <Text
+          style={
+            styles.centeredTitle
+          }
+        >
+          Loading ECG record...
+        </Text>
 
-  const chartHeight = 180;
-
-  const centerY =
-    chartHeight / 2;
-
-  const chartSamples =
-    reduceChartSamples(
-      samples,
+        <Text
+          style={
+            styles.centeredText
+          }
+        >
+          {split.toUpperCase()} /{' '}
+          {recordId}
+        </Text>
+      </View>
     );
+  }
 
-  const maxAmplitude =
-    chartSamples.reduce(
-      (
-        maximum,
-        value,
-      ) =>
-        Math.max(
-          maximum,
-          Math.abs(value),
-        ),
-      0,
+  if (
+    isDataset &&
+    error
+  ) {
+    return (
+      <View
+        style={
+          styles.centered
+        }
+      >
+        <Text
+          style={
+            styles.errorTitle
+          }
+        >
+          Unable to load record
+        </Text>
+
+        <Text
+          style={
+            styles.centeredText
+          }
+        >
+          {error}
+        </Text>
+
+        <Pressable
+          style={
+            styles.retryButton
+          }
+          onPress={
+            loadRecord
+          }
+        >
+          <Text
+            style={
+              styles.retryButtonText
+            }
+          >
+            Retry
+          </Text>
+        </Pressable>
+      </View>
     );
-
-  const points =
-    chartSamples
-      .map(
-        (
-          sample,
-          index,
-        ) => {
-          const denominator =
-            Math.max(
-              chartSamples.length -
-                1,
-              1,
-            );
-
-          const x =
-            (index /
-              denominator) *
-            chartWidth;
-
-          const normalized =
-            maxAmplitude === 0
-              ? 0
-              : sample /
-                maxAmplitude;
-
-          const y =
-            centerY -
-            normalized *
-              (chartHeight *
-                0.4);
-
-          return `${x},${y}`;
-        },
-      )
-      .join(' ');
-
-  const selectionX =
-    samples.length === 0
-      ? 0
-      : (segmentStart /
-          samples.length) *
-        chartWidth;
-
-  const selectionWidth =
-    samples.length === 0
-      ? 0
-      : ((segmentEnd -
-          segmentStart) /
-          samples.length) *
-        chartWidth;
+  }
 
   return (
     <ScrollView
-      style={styles.container}
+      style={
+        styles.container
+      }
       contentContainerStyle={
         styles.content
       }
     >
-      <Text style={styles.title}>
+      <Text
+        style={styles.title}
+      >
         ECG Viewer
       </Text>
 
-      <Text style={styles.subtitle}>
-        Record {displayRecordId}
+      <Text
+        style={
+          styles.subtitle
+        }
+      >
+        {displayRecord}
       </Text>
 
       <SectionCard title="Record Information">
         <InfoRow
-          label="Dataset"
+          label="Source"
           value={
-            isUploaded
-              ? 'Uploaded CSV'
-              : 'Local Mock'
+            isDataset
+              ? 'MIT-BIH Backend'
+              : 'Uploaded CSV'
           }
         />
 
         <InfoRow
-          label={
-            isUploaded
-              ? 'File'
-              : 'Record'
+          label="Record"
+          value={
+            displayRecord
           }
-          value={displayRecordId}
         />
+
+        {isDataset && (
+          <InfoRow
+            label="Split"
+            value={
+              split.toUpperCase()
+            }
+          />
+        )}
 
         <InfoRow
           label="Sampling Rate"
@@ -339,217 +534,255 @@ export default function ECGViewerScreen() {
         />
 
         <InfoRow
-          label="Input Source"
-          value={
-            isUploaded
-              ? 'Uploaded File'
-              : 'Local ECG Sample'
-          }
+          label="Heartbeats"
+          value={`${totalBeats}`}
         />
 
-        <InfoRow
-          label="Model Input"
-          value={`${MODEL_INPUT_SAMPLES} samples / heartbeat`}
-        />
+        {record && (
+          <InfoRow
+            label="Source Dataset"
+            value={record.source}
+          />
+        )}
       </SectionCard>
 
-      <SectionCard title="ECG Waveform">
-        <View
-          style={styles.chart}
-        >
-          <Svg
-            width="100%"
-            height={chartHeight}
-            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-          >
-            <Rect
-              x={selectionX}
-              y={0}
-              width={
-                selectionWidth
+      {currentBeat ? (
+        <>
+          <SectionCard title="Selected Heartbeat">
+            <View
+              style={
+                styles.beatSelector
               }
-              height={chartHeight}
-              fill="#dbeafe"
+            >
+              <Pressable
+                style={
+                  styles.arrowButton
+                }
+                onPress={
+                  previousBeat
+                }
+                disabled={
+                  totalBeats <= 1
+                }
+              >
+                <Text
+                  style={[
+                    styles.arrowText,
+
+                    totalBeats <=
+                      1 &&
+                      styles.arrowTextDisabled,
+                  ]}
+                >
+                  {'<'}
+                </Text>
+              </Pressable>
+
+              <View
+                style={
+                  styles.beatBox
+                }
+              >
+                <Text
+                  style={
+                    styles.beatValue
+                  }
+                >
+                  Beat #
+                  {beatIndex +
+                    1}
+                </Text>
+
+                <Text
+                  style={
+                    styles.beatLabel
+                  }
+                >
+                  Index{' '}
+                  {
+                    currentBeat.index
+                  }
+                </Text>
+
+                <Text
+                  style={
+                    styles.beatLabel
+                  }
+                >
+                  {beatIndex +
+                    1}{' '}
+                  /{' '}
+                  {
+                    totalBeats
+                  }
+                </Text>
+              </View>
+
+              <Pressable
+                style={
+                  styles.arrowButton
+                }
+                onPress={
+                  nextBeat
+                }
+                disabled={
+                  totalBeats <= 1
+                }
+              >
+                <Text
+                  style={[
+                    styles.arrowText,
+
+                    totalBeats <=
+                      1 &&
+                      styles.arrowTextDisabled,
+                  ]}
+                >
+                  {'>'}
+                </Text>
+              </Pressable>
+            </View>
+
+            <InfoRow
+              label="Reference Class"
+              value={
+                referenceLabel ??
+                'Not provided'
+              }
             />
 
-            <Line
-              x1="0"
-              y1={centerY}
-              x2={chartWidth}
-              y2={centerY}
-              stroke="#cbd5e1"
-              strokeWidth="1"
+            <InfoRow
+              label="Input Samples"
+              value={`${selectedSamples.length} / ${MODEL_INPUT_SAMPLES}`}
             />
 
-            <Polyline
-              points={points}
-              fill="none"
-              stroke="#2563eb"
-              strokeWidth="2"
-            />
-          </Svg>
-        </View>
+            {currentBeat.start !==
+              undefined && (
+              <InfoRow
+                label="Start Sample"
+                value={`${currentBeat.start}`}
+              />
+            )}
 
-        <Text
-          style={styles.sampleText}
-        >
-          {samples.length} total
-          samples
-        </Text>
-      </SectionCard>
+            {currentBeat.end !==
+              undefined && (
+              <InfoRow
+                label="End Sample"
+                value={`${currentBeat.end}`}
+              />
+            )}
+          </SectionCard>
 
-      <SectionCard title="Heartbeat Selection">
-        <View
-          style={
-            styles.beatSelector
-          }
-        >
+          <SectionCard title="Heartbeat Waveform">
+            <View
+              style={
+                styles.chart
+              }
+            >
+              <Svg
+                width="100%"
+                height={
+                  CHART_HEIGHT
+                }
+                viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+              >
+                <Line
+                  x1="0"
+                  y1={
+                    CHART_HEIGHT /
+                    2
+                  }
+                  x2={
+                    CHART_WIDTH
+                  }
+                  y2={
+                    CHART_HEIGHT /
+                    2
+                  }
+                  stroke="#cbd5e1"
+                  strokeWidth="1"
+                />
+
+                <Polyline
+                  points={
+                    chartPoints
+                  }
+                  fill="none"
+                  stroke="#2563eb"
+                  strokeWidth="2"
+                />
+              </Svg>
+            </View>
+
+            <Text
+              style={
+                styles.chartNote
+              }
+            >
+              {
+                selectedSamples.length
+              }{' '}
+              normalized samples
+            </Text>
+          </SectionCard>
+
           <Pressable
-            style={
-              styles.arrowButton
+            style={[
+              styles.primaryButton,
+
+              selectedSamples.length !==
+                MODEL_INPUT_SAMPLES &&
+                styles.primaryButtonDisabled,
+            ]}
+            onPress={
+              analyzeBeat
             }
-            onPress={previousBeat}
             disabled={
-              totalBeats <= 1
+              selectedSamples.length !==
+              MODEL_INPUT_SAMPLES
             }
           >
             <Text
-              style={[
-                styles.arrowText,
-
-                totalBeats <=
-                  1 &&
-                  styles.arrowTextDisabled,
-              ]}
+              style={
+                styles.primaryButtonText
+              }
             >
-              {'<'}
+              Analyze Beat
             </Text>
           </Pressable>
 
           <View
-            style={styles.beatBox}
+            style={
+              styles.notice
+            }
           >
             <Text
               style={
-                styles.beatValue
+                styles.noticeText
               }
             >
-              Beat #
-              {
-                displayBeatNumber
-              }
-            </Text>
-
-            <Text
-              style={
-                styles.beatLabel
-              }
-            >
-              Index {beatIndex}
-            </Text>
-
-            <Text
-              style={
-                styles.beatLabel
-              }
-            >
-              Samples{' '}
-              {segmentStart} -{' '}
-              {segmentEnd - 1}
+              {isDataset
+                ? 'This heartbeat is loaded from the MIT-BIH backend. The backend crops or pads it to 320 samples and applies z-score normalization.'
+                : 'Uploaded CSV data is divided locally into complete 320-sample heartbeat segments. Ground-truth labels are not available unless provided by a future upload format.'}
             </Text>
           </View>
-
-          <Pressable
+        </>
+      ) : (
+        <View
+          style={
+            styles.emptyBox
+          }
+        >
+          <Text
             style={
-              styles.arrowButton
-            }
-            onPress={nextBeat}
-            disabled={
-              totalBeats <= 1
+              styles.centeredText
             }
           >
-            <Text
-              style={[
-                styles.arrowText,
-
-                totalBeats <=
-                  1 &&
-                  styles.arrowTextDisabled,
-              ]}
-            >
-              {'>'}
-            </Text>
-          </Pressable>
+            No heartbeat data
+            available.
+          </Text>
         </View>
-
-        <InfoRow
-          label="Heart Rate"
-          value={
-            heartRate ===
-            undefined
-              ? 'Not provided'
-              : `${heartRate} BPM`
-          }
-        />
-
-        <InfoRow
-          label="Reference Class"
-          value={
-            referenceLabel ??
-            'Not provided'
-          }
-        />
-
-        <InfoRow
-          label="Selected Beat"
-          value={`#${displayBeatNumber}`}
-        />
-
-        <InfoRow
-          label="Beat Index"
-          value={`${beatIndex}`}
-        />
-
-        <InfoRow
-          label="Input Samples"
-          value={`${selectedSamples.length} / ${MODEL_INPUT_SAMPLES}`}
-        />
-      </SectionCard>
-
-      <Pressable
-        style={[
-          styles.primaryButton,
-
-          selectedSamples.length !==
-            MODEL_INPUT_SAMPLES &&
-            styles.primaryButtonDisabled,
-        ]}
-        onPress={analyzeBeat}
-        disabled={
-          selectedSamples.length !==
-          MODEL_INPUT_SAMPLES
-        }
-      >
-        <Text
-          style={
-            styles.primaryButtonText
-          }
-        >
-          Analyze Beat
-        </Text>
-      </Pressable>
-
-      <View style={styles.notice}>
-        <Text
-          style={
-            styles.noticeText
-          }
-        >
-          {isUploaded
-            ? `Uploaded CSV data is temporarily divided into complete ${MODEL_INPUT_SAMPLES}-sample heartbeats. In backend MIT-BIH mode, heartbeat boundaries will come directly from the dataset API.`
-            : `This local waveform is simulated for mobile development. Each mock record now contains one ${MODEL_INPUT_SAMPLES}-sample heartbeat matching the model input size.`}
-        </Text>
-      </View>
+      )}
     </ScrollView>
   );
 }
@@ -558,12 +791,36 @@ const styles =
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: '#f8fafc',
+      backgroundColor:
+        '#f8fafc',
     },
 
     content: {
       padding: 20,
       paddingBottom: 40,
+    },
+
+    centered: {
+      flex: 1,
+      backgroundColor:
+        '#f8fafc',
+      alignItems: 'center',
+      justifyContent:
+        'center',
+      padding: 24,
+    },
+
+    centeredTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: '#0f172a',
+      marginBottom: 6,
+    },
+
+    centeredText: {
+      color: '#64748b',
+      textAlign: 'center',
+      lineHeight: 20,
     },
 
     title: {
@@ -579,21 +836,6 @@ const styles =
       marginBottom: 20,
     },
 
-    chart: {
-      height: 180,
-      backgroundColor: '#f8fafc',
-      borderRadius: 12,
-      overflow: 'hidden',
-      justifyContent: 'center',
-    },
-
-    sampleText: {
-      textAlign: 'center',
-      color: '#64748b',
-      fontSize: 12,
-      marginTop: 8,
-    },
-
     beatSelector: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -604,8 +846,10 @@ const styles =
       width: 46,
       height: 46,
       borderRadius: 12,
-      backgroundColor: '#eff6ff',
-      justifyContent: 'center',
+      backgroundColor:
+        '#eff6ff',
+      justifyContent:
+        'center',
       alignItems: 'center',
     },
 
@@ -637,8 +881,27 @@ const styles =
       marginTop: 4,
     },
 
+    chart: {
+      height:
+        CHART_HEIGHT,
+      backgroundColor:
+        '#f8fafc',
+      borderRadius: 12,
+      overflow: 'hidden',
+      justifyContent:
+        'center',
+    },
+
+    chartNote: {
+      textAlign: 'center',
+      color: '#64748b',
+      fontSize: 12,
+      marginTop: 8,
+    },
+
     primaryButton: {
-      backgroundColor: '#2563eb',
+      backgroundColor:
+        '#2563eb',
       borderRadius: 14,
       paddingVertical: 16,
       alignItems: 'center',
@@ -646,7 +909,8 @@ const styles =
     },
 
     primaryButtonDisabled: {
-      backgroundColor: '#94a3b8',
+      backgroundColor:
+        '#94a3b8',
     },
 
     primaryButtonText: {
@@ -656,14 +920,43 @@ const styles =
     },
 
     notice: {
-      backgroundColor: '#fff7ed',
+      backgroundColor:
+        '#eff6ff',
       borderRadius: 12,
       padding: 14,
     },
 
     noticeText: {
-      color: '#9a3412',
+      color: '#1e40af',
       fontSize: 13,
       lineHeight: 19,
+    },
+
+    emptyBox: {
+      backgroundColor:
+        '#ffffff',
+      padding: 20,
+      borderRadius: 14,
+    },
+
+    errorTitle: {
+      color: '#b91c1c',
+      fontSize: 18,
+      fontWeight: '700',
+      marginBottom: 8,
+    },
+
+    retryButton: {
+      marginTop: 16,
+      backgroundColor:
+        '#2563eb',
+      paddingVertical: 12,
+      paddingHorizontal: 24,
+      borderRadius: 10,
+    },
+
+    retryButtonText: {
+      color: '#ffffff',
+      fontWeight: '700',
     },
   });

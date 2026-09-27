@@ -1,27 +1,40 @@
-import { useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
 
 import {
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 
-import { useNavigation } from '@react-navigation/native';
+import {
+  useNavigation,
+} from '@react-navigation/native';
 
 import * as DocumentPicker from 'expo-document-picker';
 
-import { File } from 'expo-file-system';
+import {
+  File,
+} from 'expo-file-system';
 
 import InfoRow from '../components/InfoRow';
 import SectionCard from '../components/SectionCard';
 
-import { ecgRecords } from '../data/ecgRecords';
+import {
+  getDatasetRecords,
+} from '../services/ecgApi';
 
 import type {
+  DatasetSplit,
   ECGInputSource,
+  ECGRecordSummary,
   UploadedECGFile,
 } from '../types/ecg';
 
@@ -31,141 +44,283 @@ import {
   MODEL_INPUT_SAMPLES,
 } from '../types/ecg';
 
-const parseECGSamples = (
-  content: string,
-): number[] => {
-  const numericRows = content
-    .replace(/^\uFEFF/, '')
-    .split(/\r?\n/)
-    .map((line) =>
-      line
-        .split(/[,\t;]/)
-        .map((cell) => cell.trim())
-        .filter((cell) => cell.length > 0)
-        .map((cell) => Number(cell))
-        .filter((value) => Number.isFinite(value)),
-    )
-    .filter((row) => row.length > 0);
+import {
+  getCompleteHeartbeatCount,
+  parseECGSamples,
+} from '../utils/ecgCsv';
 
-  if (
-    numericRows.length === 1 &&
-    numericRows[0].length > 2
-  ) {
-    return numericRows[0];
-  }
-
-  return numericRows.map(
-    (row) => row[row.length - 1],
-  );
-};
+const SPLITS: DatasetSplit[] = [
+  'train',
+  'val',
+  'test',
+];
 
 export default function ECGInputScreen() {
-  const navigation = useNavigation<any>();
+  const navigation =
+    useNavigation<any>();
 
-  const [recordIndex, setRecordIndex] =
+  const [
+    inputSource,
+    setInputSource,
+  ] =
+    useState<ECGInputSource>(
+      'dataset',
+    );
+
+  const [
+    split,
+    setSplit,
+  ] =
+    useState<DatasetSplit>(
+      'test',
+    );
+
+  const [
+    records,
+    setRecords,
+  ] =
+    useState<
+      ECGRecordSummary[]
+    >([]);
+
+  const [
+    recordIndex,
+    setRecordIndex,
+  ] =
     useState(0);
 
-  const [inputSource, setInputSource] =
-    useState<ECGInputSource>('sample');
+  const [
+    selectedFile,
+    setSelectedFile,
+  ] =
+    useState<UploadedECGFile | null>(
+      null,
+    );
 
-  const [selectedFile, setSelectedFile] =
-    useState<UploadedECGFile | null>(null);
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(false);
+
+  const [
+    refreshing,
+    setRefreshing,
+  ] =
+    useState(false);
+
+  const [
+    error,
+    setError,
+  ] =
+    useState<string | null>(
+      null,
+    );
 
   const currentRecord =
-    ecgRecords[recordIndex];
+    records[recordIndex];
 
-  const previousRecord = () => {
-    setRecordIndex((current) =>
-      current === 0
-        ? ecgRecords.length - 1
-        : current - 1,
+  const loadRecords =
+    useCallback(
+      async (
+        selectedSplit:
+          DatasetSplit,
+        isRefresh = false,
+      ) => {
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        setError(null);
+
+        try {
+          const response =
+            await getDatasetRecords(
+              selectedSplit,
+            );
+
+          setRecords(
+            response.records,
+          );
+
+          setRecordIndex(0);
+        } catch (
+          requestError
+        ) {
+          setRecords([]);
+          setRecordIndex(0);
+
+          if (
+            requestError instanceof
+            Error
+          ) {
+            setError(
+              requestError.message,
+            );
+          } else {
+            setError(
+              'Unable to load dataset records.',
+            );
+          }
+        } finally {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      },
+      [],
+    );
+
+  useEffect(() => {
+    loadRecords(split);
+  }, [
+    loadRecords,
+    split,
+  ]);
+
+  const selectSplit = (
+    selectedSplit:
+      DatasetSplit,
+  ) => {
+    setSplit(selectedSplit);
+    setInputSource(
+      'dataset',
     );
   };
+
+  const previousRecord =
+    () => {
+      if (
+        records.length === 0
+      ) {
+        return;
+      }
+
+      setRecordIndex(
+        (current) =>
+          current === 0
+            ? records.length - 1
+            : current - 1,
+      );
+    };
 
   const nextRecord = () => {
-    setRecordIndex((current) =>
-      current === ecgRecords.length - 1
-        ? 0
-        : current + 1,
+    if (
+      records.length === 0
+    ) {
+      return;
+    }
+
+    setRecordIndex(
+      (current) =>
+        current ===
+        records.length - 1
+          ? 0
+          : current + 1,
     );
   };
 
-  const selectSampleSource = () => {
-    setInputSource('sample');
-  };
-
-  const selectECGFile = async () => {
-    setInputSource('upload');
-
-    try {
-      const result =
-        await DocumentPicker.getDocumentAsync({
-          type: '*/*',
-          multiple: false,
-          copyToCacheDirectory: true,
-        });
-
-      if (result.canceled) {
-        return;
-      }
-
-      const asset = result.assets[0];
-
-      if (
-        !asset.name
-          .toLowerCase()
-          .endsWith('.csv')
-      ) {
-        setSelectedFile(null);
-
-        Alert.alert(
-          'Invalid file type',
-          'Please select an ECG file in CSV format.',
-        );
-
-        return;
-      }
-
-      const file = new File(asset.uri);
-
-      const content = await file.text();
-
-      const samples =
-        parseECGSamples(content);
-
-      if (
-        samples.length <
-        MODEL_INPUT_SAMPLES
-      ) {
-        setSelectedFile(null);
-
-        Alert.alert(
-          'Invalid ECG data',
-          `The CSV file must contain at least ${MODEL_INPUT_SAMPLES} numeric samples.`,
-        );
-
-        return;
-      }
-
-      setSelectedFile({
-        name: asset.name,
-        uri: asset.uri,
-        samplingRate:
-          MIT_BIH_SAMPLING_RATE,
-        samples,
-      });
-    } catch {
-      setSelectedFile(null);
-
-      Alert.alert(
-        'File reading failed',
-        'The selected ECG file could not be read.',
+  const selectDatasetSource =
+    () => {
+      setInputSource(
+        'dataset',
       );
-    }
-  };
+    };
+
+  const selectECGFile =
+    async () => {
+      setInputSource(
+        'upload',
+      );
+
+      try {
+        const result =
+          await DocumentPicker
+            .getDocumentAsync({
+              type: '*/*',
+              multiple: false,
+              copyToCacheDirectory:
+                true,
+            });
+
+        if (result.canceled) {
+          return;
+        }
+
+        const asset =
+          result.assets[0];
+
+        if (
+          !asset.name
+            .toLowerCase()
+            .endsWith('.csv')
+        ) {
+          setSelectedFile(
+            null,
+          );
+
+          Alert.alert(
+            'Invalid file type',
+            'Please select an ECG file in CSV format.',
+          );
+
+          return;
+        }
+
+        const file =
+          new File(
+            asset.uri,
+          );
+
+        const content =
+          await file.text();
+
+        const samples =
+          parseECGSamples(
+            content,
+          );
+
+        if (
+          samples.length <
+          MODEL_INPUT_SAMPLES
+        ) {
+          setSelectedFile(
+            null,
+          );
+
+          Alert.alert(
+            'Invalid ECG data',
+            `The CSV file must contain at least ${MODEL_INPUT_SAMPLES} numeric samples.`,
+          );
+
+          return;
+        }
+
+        setSelectedFile({
+          name: asset.name,
+          uri: asset.uri,
+          samplingRate:
+            MIT_BIH_SAMPLING_RATE,
+          samples,
+        });
+      } catch {
+        setSelectedFile(
+          null,
+        );
+
+        Alert.alert(
+          'File reading failed',
+          'The selected ECG file could not be read.',
+        );
+      }
+    };
 
   const loadECG = () => {
-    if (inputSource === 'upload') {
+    if (
+      inputSource ===
+      'upload'
+    ) {
       if (!selectedFile) {
         Alert.alert(
           'ECG file required',
@@ -178,13 +333,14 @@ export default function ECGInputScreen() {
       navigation.navigate(
         'ECGViewer',
         {
+          inputSource:
+            'upload',
+
           recordId:
             selectedFile.name.replace(
               /\.csv$/i,
               '',
             ),
-
-          inputSource: 'upload',
 
           uploadedFileName:
             selectedFile.name,
@@ -200,47 +356,84 @@ export default function ECGInputScreen() {
       return;
     }
 
+    if (!currentRecord) {
+      Alert.alert(
+        'Record required',
+        'No MIT-BIH record is currently available.',
+      );
+
+      return;
+    }
+
     navigation.navigate(
       'ECGViewer',
       {
-        recordId:
-          currentRecord.recordId,
+        inputSource:
+          'dataset',
 
-        inputSource: 'sample',
+        split,
+
+        recordId:
+          currentRecord.record_id,
       },
     );
   };
 
   const uploadedBeatCount =
     selectedFile
-      ? Math.floor(
-          selectedFile.samples.length /
-            MODEL_INPUT_SAMPLES,
+      ? getCompleteHeartbeatCount(
+          selectedFile.samples,
         )
       : 0;
 
   return (
     <ScrollView
-      style={styles.container}
+      style={
+        styles.container
+      }
       contentContainerStyle={
         styles.content
       }
+      refreshControl={
+        <RefreshControl
+          refreshing={
+            refreshing
+          }
+          onRefresh={() =>
+            loadRecords(
+              split,
+              true,
+            )
+          }
+        />
+      }
     >
-      <Text style={styles.title}>
+      <Text
+        style={styles.title}
+      >
         ECG Data
       </Text>
 
-      <Text style={styles.subtitle}>
-        Select ECG heartbeat data for
-        analysis
+      <Text
+        style={
+          styles.subtitle
+        }
+      >
+        Select a real MIT-BIH
+        heartbeat or upload a CSV
+        file
       </Text>
 
       <SectionCard title="Dataset">
         <View
-          style={styles.selectedBox}
+          style={
+            styles.selectedBox
+          }
         >
           <Text
-            style={styles.selectedTitle}
+            style={
+              styles.selectedTitle
+            }
           >
             MIT-BIH
           </Text>
@@ -261,9 +454,11 @@ export default function ECGInputScreen() {
 
         <InfoRow
           label="Classes"
-          value={ECG_CLASSES.join(
-            ' / ',
-          )}
+          value={
+            ECG_CLASSES.join(
+              ' / ',
+            )
+          }
         />
 
         <InfoRow
@@ -272,131 +467,28 @@ export default function ECGInputScreen() {
         />
       </SectionCard>
 
-      <SectionCard title="Local Sample">
-        <Text
-          style={styles.fieldLabel}
-        >
-          Selected Record
-        </Text>
-
-        <View
-          style={
-            styles.recordSelector
-          }
-        >
-          <Pressable
-            style={
-              styles.arrowButton
-            }
-            onPress={previousRecord}
-          >
-            <Text
-              style={
-                styles.arrowText
-              }
-            >
-              {'<'}
-            </Text>
-          </Pressable>
-
-          <View
-            style={styles.recordBox}
-          >
-            <Text
-              style={
-                styles.recordValue
-              }
-            >
-              {
-                currentRecord.recordId
-              }
-            </Text>
-
-            <Text
-              style={
-                styles.recordLabel
-              }
-            >
-              Record ID
-            </Text>
-          </View>
-
-          <Pressable
-            style={
-              styles.arrowButton
-            }
-            onPress={nextRecord}
-          >
-            <Text
-              style={
-                styles.arrowText
-              }
-            >
-              {'>'}
-            </Text>
-          </Pressable>
-        </View>
-
-        <InfoRow
-          label="Reference Label"
-          value={currentRecord.label}
-        />
-
-        <InfoRow
-          label="Heartbeat Samples"
-          value={`${currentRecord.samples.length}`}
-        />
-
-        <InfoRow
-          label="Heart Rate"
-          value={
-            currentRecord.heartRate ===
-            undefined
-              ? 'Not provided'
-              : `${currentRecord.heartRate} BPM`
-          }
-        />
-
-        <View
-          style={styles.mockNotice}
-        >
-          <Text
-            style={
-              styles.mockNoticeText
-            }
-          >
-            Local samples are temporary
-            simulated waveforms. Real
-            MIT-BIH records will be
-            loaded from the backend API
-            in the next integration
-            checkpoint.
-          </Text>
-        </View>
-      </SectionCard>
-
       <SectionCard title="Input Source">
         <Pressable
           style={[
             styles.sourceButton,
 
             inputSource ===
-              'sample' &&
+              'dataset' &&
               styles.sourceButtonActive,
           ]}
           onPress={
-            selectSampleSource
+            selectDatasetSource
           }
         >
           <Text
             style={
               inputSource ===
-              'sample'
+              'dataset'
                 ? styles.sourceButtonActiveText
                 : styles.sourceButtonText
             }
           >
-            Local ECG Sample
+            MIT-BIH Dataset
           </Text>
         </Pressable>
 
@@ -408,7 +500,9 @@ export default function ECGInputScreen() {
               'upload' &&
               styles.sourceButtonActive,
           ]}
-          onPress={selectECGFile}
+          onPress={
+            selectECGFile
+          }
         >
           <Text
             style={
@@ -421,12 +515,230 @@ export default function ECGInputScreen() {
             Upload ECG File
           </Text>
         </Pressable>
+      </SectionCard>
 
-        {inputSource ===
-          'upload' &&
-          (selectedFile ? (
+      {inputSource ===
+        'dataset' && (
+        <>
+          <SectionCard title="Dataset Split">
             <View
-              style={styles.fileBox}
+              style={
+                styles.splitRow
+              }
+            >
+              {SPLITS.map(
+                (
+                  splitOption,
+                ) => (
+                  <Pressable
+                    key={
+                      splitOption
+                    }
+                    style={[
+                      styles.splitButton,
+
+                      split ===
+                        splitOption &&
+                        styles.splitButtonActive,
+                    ]}
+                    onPress={() =>
+                      selectSplit(
+                        splitOption,
+                      )
+                    }
+                  >
+                    <Text
+                      style={
+                        split ===
+                        splitOption
+                          ? styles.splitButtonActiveText
+                          : styles.splitButtonText
+                      }
+                    >
+                      {splitOption
+                        .toUpperCase()}
+                    </Text>
+                  </Pressable>
+                ),
+              )}
+            </View>
+
+            <InfoRow
+              label="Records"
+              value={`${records.length}`}
+            />
+          </SectionCard>
+
+          <SectionCard title="MIT-BIH Record">
+            {loading ? (
+              <Text
+                style={
+                  styles.infoText
+                }
+              >
+                Loading records...
+              </Text>
+            ) : error ? (
+              <View
+                style={
+                  styles.errorBox
+                }
+              >
+                <Text
+                  style={
+                    styles.errorTitle
+                  }
+                >
+                  Dataset request
+                  failed
+                </Text>
+
+                <Text
+                  style={
+                    styles.errorText
+                  }
+                >
+                  {error}
+                </Text>
+
+                <Pressable
+                  style={
+                    styles.retryButton
+                  }
+                  onPress={() =>
+                    loadRecords(
+                      split,
+                    )
+                  }
+                >
+                  <Text
+                    style={
+                      styles.retryButtonText
+                    }
+                  >
+                    Retry
+                  </Text>
+                </Pressable>
+              </View>
+            ) : currentRecord ? (
+              <>
+                <View
+                  style={
+                    styles.recordSelector
+                  }
+                >
+                  <Pressable
+                    style={
+                      styles.arrowButton
+                    }
+                    onPress={
+                      previousRecord
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.arrowText
+                      }
+                    >
+                      {'<'}
+                    </Text>
+                  </Pressable>
+
+                  <View
+                    style={
+                      styles.recordBox
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.recordValue
+                      }
+                    >
+                      {
+                        currentRecord.record_id
+                      }
+                    </Text>
+
+                    <Text
+                      style={
+                        styles.recordLabel
+                      }
+                    >
+                      Record{' '}
+                      {recordIndex +
+                        1}{' '}
+                      /{' '}
+                      {
+                        records.length
+                      }
+                    </Text>
+                  </View>
+
+                  <Pressable
+                    style={
+                      styles.arrowButton
+                    }
+                    onPress={
+                      nextRecord
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.arrowText
+                      }
+                    >
+                      {'>'}
+                    </Text>
+                  </Pressable>
+                </View>
+
+                <InfoRow
+                  label="Split"
+                  value={
+                    currentRecord.split.toUpperCase()
+                  }
+                />
+
+                <InfoRow
+                  label="Heartbeat Count"
+                  value={`${currentRecord.beat_count}`}
+                />
+
+                {ECG_CLASSES.map(
+                  (
+                    ecgClass,
+                  ) => (
+                    <InfoRow
+                      key={
+                        ecgClass
+                      }
+                      label={`Class ${ecgClass}`}
+                      value={`${currentRecord.class_counts[ecgClass] ?? 0}`}
+                    />
+                  ),
+                )}
+              </>
+            ) : (
+              <Text
+                style={
+                  styles.infoText
+                }
+              >
+                No records available.
+              </Text>
+            )}
+          </SectionCard>
+        </>
+      )}
+
+      {inputSource ===
+        'upload' && (
+        <SectionCard title="Uploaded CSV">
+          {selectedFile ? (
+            <View
+              style={
+                styles.fileBox
+              }
             >
               <Text
                 style={
@@ -447,7 +759,7 @@ export default function ECGInputScreen() {
                   selectedFile
                     .samples.length
                 }{' '}
-                samples
+                numeric samples
               </Text>
 
               <Text
@@ -462,28 +774,44 @@ export default function ECGInputScreen() {
                 {uploadedBeatCount ===
                 1
                   ? ''
-                  : 's'}{' '}
-                ×{' '}
-                {
-                  MODEL_INPUT_SAMPLES
-                }{' '}
-                samples
+                  : 's'}
               </Text>
             </View>
           ) : (
             <Text
               style={
-                styles.uploadMessage
+                styles.infoText
               }
             >
-              No ECG file selected
+              No ECG file selected.
             </Text>
-          ))}
-      </SectionCard>
+          )}
+        </SectionCard>
+      )}
 
       <Pressable
-        style={styles.primaryButton}
+        style={[
+          styles.primaryButton,
+
+          inputSource ===
+            'dataset' &&
+            !currentRecord &&
+            styles.primaryButtonDisabled,
+
+          inputSource ===
+            'upload' &&
+            !selectedFile &&
+            styles.primaryButtonDisabled,
+        ]}
         onPress={loadECG}
+        disabled={
+          (inputSource ===
+            'dataset' &&
+            !currentRecord) ||
+          (inputSource ===
+            'upload' &&
+            !selectedFile)
+        }
       >
         <Text
           style={
@@ -501,7 +829,8 @@ const styles =
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: '#f8fafc',
+      backgroundColor:
+        '#f8fafc',
     },
 
     content: {
@@ -523,7 +852,8 @@ const styles =
     },
 
     selectedBox: {
-      backgroundColor: '#eff6ff',
+      backgroundColor:
+        '#eff6ff',
       borderRadius: 12,
       padding: 14,
       marginBottom: 16,
@@ -540,9 +870,60 @@ const styles =
       marginTop: 4,
     },
 
-    fieldLabel: {
-      color: '#64748b',
+    sourceButton: {
+      borderWidth: 1,
+      borderColor: '#cbd5e1',
+      borderRadius: 12,
+      padding: 14,
       marginBottom: 10,
+      alignItems: 'center',
+    },
+
+    sourceButtonActive: {
+      backgroundColor:
+        '#eff6ff',
+      borderColor: '#2563eb',
+    },
+
+    sourceButtonText: {
+      color: '#334155',
+      fontWeight: '600',
+    },
+
+    sourceButtonActiveText: {
+      color: '#2563eb',
+      fontWeight: '700',
+    },
+
+    splitRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginBottom: 16,
+    },
+
+    splitButton: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: '#cbd5e1',
+      borderRadius: 10,
+      paddingVertical: 10,
+      alignItems: 'center',
+    },
+
+    splitButtonActive: {
+      backgroundColor:
+        '#2563eb',
+      borderColor: '#2563eb',
+    },
+
+    splitButtonText: {
+      color: '#334155',
+      fontWeight: '600',
+    },
+
+    splitButtonActiveText: {
+      color: '#ffffff',
+      fontWeight: '700',
     },
 
     recordSelector: {
@@ -557,15 +938,17 @@ const styles =
       width: 48,
       height: 48,
       borderRadius: 12,
-      backgroundColor: '#eff6ff',
+      backgroundColor:
+        '#eff6ff',
       alignItems: 'center',
-      justifyContent: 'center',
+      justifyContent:
+        'center',
     },
 
     arrowText: {
+      color: '#2563eb',
       fontSize: 24,
       fontWeight: '700',
-      color: '#2563eb',
       lineHeight: 28,
     },
 
@@ -586,52 +969,50 @@ const styles =
       marginTop: 2,
     },
 
-    mockNotice: {
-      marginTop: 12,
-      backgroundColor: '#fff7ed',
-      borderRadius: 10,
-      padding: 12,
-    },
-
-    mockNoticeText: {
-      color: '#9a3412',
-      fontSize: 12,
+    infoText: {
+      color: '#64748b',
+      fontSize: 13,
       lineHeight: 18,
     },
 
-    sourceButton: {
+    errorBox: {
+      backgroundColor:
+        '#fef2f2',
       borderWidth: 1,
-      borderColor: '#cbd5e1',
+      borderColor: '#fecaca',
       borderRadius: 12,
-      padding: 14,
-      marginBottom: 10,
+      padding: 12,
+    },
+
+    errorTitle: {
+      color: '#991b1b',
+      fontWeight: '700',
+      marginBottom: 4,
+    },
+
+    errorText: {
+      color: '#b91c1c',
+      fontSize: 13,
+      lineHeight: 18,
+    },
+
+    retryButton: {
+      marginTop: 12,
+      backgroundColor:
+        '#dc2626',
+      borderRadius: 10,
+      paddingVertical: 10,
       alignItems: 'center',
     },
 
-    sourceButtonActive: {
-      backgroundColor: '#eff6ff',
-      borderColor: '#2563eb',
-    },
-
-    sourceButtonText: {
-      color: '#334155',
-      fontWeight: '600',
-    },
-
-    sourceButtonActiveText: {
-      color: '#2563eb',
+    retryButtonText: {
+      color: '#ffffff',
       fontWeight: '700',
     },
 
-    uploadMessage: {
-      color: '#dc2626',
-      fontSize: 13,
-      textAlign: 'center',
-      marginTop: 2,
-    },
-
     fileBox: {
-      backgroundColor: '#f0fdf4',
+      backgroundColor:
+        '#f0fdf4',
       borderWidth: 1,
       borderColor: '#86efac',
       borderRadius: 10,
@@ -652,11 +1033,17 @@ const styles =
     },
 
     primaryButton: {
-      backgroundColor: '#2563eb',
+      backgroundColor:
+        '#2563eb',
       borderRadius: 14,
       paddingVertical: 16,
       alignItems: 'center',
       marginTop: 4,
+    },
+
+    primaryButtonDisabled: {
+      backgroundColor:
+        '#94a3b8',
     },
 
     primaryButtonText: {
