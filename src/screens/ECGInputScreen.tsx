@@ -1,4 +1,5 @@
 import { useState } from 'react';
+
 import {
   Alert,
   Pressable,
@@ -7,27 +8,32 @@ import {
   Text,
   View,
 } from 'react-native';
+
 import { useNavigation } from '@react-navigation/native';
+
 import * as DocumentPicker from 'expo-document-picker';
+
 import { File } from 'expo-file-system';
 
 import InfoRow from '../components/InfoRow';
 import SectionCard from '../components/SectionCard';
+
+import { ecgRecords } from '../data/ecgRecords';
+
 import type {
   ECGInputSource,
   UploadedECGFile,
 } from '../types/ecg';
 
-const records = [
-  { recordId: '100', referenceLabel: 'N' },
-  { recordId: '101', referenceLabel: 'N' },
-  { recordId: '102', referenceLabel: 'S' },
-  { recordId: '103', referenceLabel: 'V' },
-  { recordId: '104', referenceLabel: 'N' },
-  { recordId: '105', referenceLabel: 'F' },
-];
+import {
+  ECG_CLASSES,
+  MIT_BIH_SAMPLING_RATE,
+  MODEL_INPUT_SAMPLES,
+} from '../types/ecg';
 
-const parseECGSamples = (content: string): number[] => {
+const parseECGSamples = (
+  content: string,
+): number[] => {
   const numericRows = content
     .replace(/^\uFEFF/, '')
     .split(/\r?\n/)
@@ -48,13 +54,16 @@ const parseECGSamples = (content: string): number[] => {
     return numericRows[0];
   }
 
-  return numericRows.map((row) => row[row.length - 1]);
+  return numericRows.map(
+    (row) => row[row.length - 1],
+  );
 };
 
 export default function ECGInputScreen() {
   const navigation = useNavigation<any>();
 
-  const [recordIndex, setRecordIndex] = useState(0);
+  const [recordIndex, setRecordIndex] =
+    useState(0);
 
   const [inputSource, setInputSource] =
     useState<ECGInputSource>('sample');
@@ -62,17 +71,22 @@ export default function ECGInputScreen() {
   const [selectedFile, setSelectedFile] =
     useState<UploadedECGFile | null>(null);
 
-  const currentRecord = records[recordIndex];
+  const currentRecord =
+    ecgRecords[recordIndex];
 
   const previousRecord = () => {
     setRecordIndex((current) =>
-      current === 0 ? records.length - 1 : current - 1,
+      current === 0
+        ? ecgRecords.length - 1
+        : current - 1,
     );
   };
 
   const nextRecord = () => {
     setRecordIndex((current) =>
-      current === records.length - 1 ? 0 : current + 1,
+      current === ecgRecords.length - 1
+        ? 0
+        : current + 1,
     );
   };
 
@@ -97,7 +111,11 @@ export default function ECGInputScreen() {
 
       const asset = result.assets[0];
 
-      if (!asset.name.toLowerCase().endsWith('.csv')) {
+      if (
+        !asset.name
+          .toLowerCase()
+          .endsWith('.csv')
+      ) {
         setSelectedFile(null);
 
         Alert.alert(
@@ -109,15 +127,21 @@ export default function ECGInputScreen() {
       }
 
       const file = new File(asset.uri);
-      const content = await file.text();
-      const samples = parseECGSamples(content);
 
-      if (samples.length < 80) {
+      const content = await file.text();
+
+      const samples =
+        parseECGSamples(content);
+
+      if (
+        samples.length <
+        MODEL_INPUT_SAMPLES
+      ) {
         setSelectedFile(null);
 
         Alert.alert(
           'Invalid ECG data',
-          'The CSV file must contain at least 80 numeric samples.',
+          `The CSV file must contain at least ${MODEL_INPUT_SAMPLES} numeric samples.`,
         );
 
         return;
@@ -126,7 +150,8 @@ export default function ECGInputScreen() {
       setSelectedFile({
         name: asset.name,
         uri: asset.uri,
-        samplingRate: 360,
+        samplingRate:
+          MIT_BIH_SAMPLING_RATE,
         samples,
       });
     } catch {
@@ -150,125 +175,245 @@ export default function ECGInputScreen() {
         return;
       }
 
-      navigation.navigate('ECGViewer', {
-        recordId: selectedFile.name.replace(
-          /\.csv$/i,
-          '',
-        ),
-        inputSource: 'upload',
-        uploadedFileName: selectedFile.name,
-        uploadedSamples: selectedFile.samples,
-        samplingRate: selectedFile.samplingRate,
-      });
+      navigation.navigate(
+        'ECGViewer',
+        {
+          recordId:
+            selectedFile.name.replace(
+              /\.csv$/i,
+              '',
+            ),
+
+          inputSource: 'upload',
+
+          uploadedFileName:
+            selectedFile.name,
+
+          uploadedSamples:
+            selectedFile.samples,
+
+          samplingRate:
+            selectedFile.samplingRate,
+        },
+      );
 
       return;
     }
 
-    navigation.navigate('ECGViewer', {
-      recordId: currentRecord.recordId,
-      inputSource: 'sample',
-    });
+    navigation.navigate(
+      'ECGViewer',
+      {
+        recordId:
+          currentRecord.recordId,
+
+        inputSource: 'sample',
+      },
+    );
   };
+
+  const uploadedBeatCount =
+    selectedFile
+      ? Math.floor(
+          selectedFile.samples.length /
+            MODEL_INPUT_SAMPLES,
+        )
+      : 0;
 
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={
+        styles.content
+      }
     >
-      <Text style={styles.title}>ECG Data</Text>
+      <Text style={styles.title}>
+        ECG Data
+      </Text>
 
       <Text style={styles.subtitle}>
-        Select ECG data for analysis
+        Select ECG heartbeat data for
+        analysis
       </Text>
 
       <SectionCard title="Dataset">
-        <View style={styles.selectedBox}>
-          <Text style={styles.selectedTitle}>MIT-BIH</Text>
+        <View
+          style={styles.selectedBox}
+        >
+          <Text
+            style={styles.selectedTitle}
+          >
+            MIT-BIH
+          </Text>
 
-          <Text style={styles.selectedSubtitle}>
+          <Text
+            style={
+              styles.selectedSubtitle
+            }
+          >
             Arrhythmia ECG Dataset
           </Text>
         </View>
 
-        <InfoRow label="Sampling Rate" value="360 Hz" />
-        <InfoRow label="Classes" value="N / S / V / F" />
+        <InfoRow
+          label="Sampling Rate"
+          value={`${MIT_BIH_SAMPLING_RATE} Hz`}
+        />
+
+        <InfoRow
+          label="Classes"
+          value={ECG_CLASSES.join(
+            ' / ',
+          )}
+        />
+
+        <InfoRow
+          label="Model Input"
+          value={`${MODEL_INPUT_SAMPLES} samples / heartbeat`}
+        />
       </SectionCard>
 
-      <SectionCard title="ECG Record">
-        <Text style={styles.fieldLabel}>
+      <SectionCard title="Local Sample">
+        <Text
+          style={styles.fieldLabel}
+        >
           Selected Record
         </Text>
 
-        <View style={styles.recordSelector}>
+        <View
+          style={
+            styles.recordSelector
+          }
+        >
           <Pressable
-            style={styles.arrowButton}
+            style={
+              styles.arrowButton
+            }
             onPress={previousRecord}
           >
-            <Text style={styles.arrowText}>{'<'}</Text>
+            <Text
+              style={
+                styles.arrowText
+              }
+            >
+              {'<'}
+            </Text>
           </Pressable>
 
-          <View style={styles.recordBox}>
-            <Text style={styles.recordValue}>
-              {currentRecord.recordId}
+          <View
+            style={styles.recordBox}
+          >
+            <Text
+              style={
+                styles.recordValue
+              }
+            >
+              {
+                currentRecord.recordId
+              }
             </Text>
 
-            <Text style={styles.recordLabel}>
+            <Text
+              style={
+                styles.recordLabel
+              }
+            >
               Record ID
             </Text>
           </View>
 
           <Pressable
-            style={styles.arrowButton}
+            style={
+              styles.arrowButton
+            }
             onPress={nextRecord}
           >
-            <Text style={styles.arrowText}>{'>'}</Text>
+            <Text
+              style={
+                styles.arrowText
+              }
+            >
+              {'>'}
+            </Text>
           </Pressable>
         </View>
 
         <InfoRow
-          label="Current Segment"
-          value="Segment 01"
+          label="Reference Label"
+          value={currentRecord.label}
         />
-
-        <InfoRow label="Current Beat" value="#001" />
 
         <InfoRow
-          label="Reference Label"
-          value={currentRecord.referenceLabel}
+          label="Heartbeat Samples"
+          value={`${currentRecord.samples.length}`}
         />
+
+        <InfoRow
+          label="Heart Rate"
+          value={
+            currentRecord.heartRate ===
+            undefined
+              ? 'Not provided'
+              : `${currentRecord.heartRate} BPM`
+          }
+        />
+
+        <View
+          style={styles.mockNotice}
+        >
+          <Text
+            style={
+              styles.mockNoticeText
+            }
+          >
+            Local samples are temporary
+            simulated waveforms. Real
+            MIT-BIH records will be
+            loaded from the backend API
+            in the next integration
+            checkpoint.
+          </Text>
+        </View>
       </SectionCard>
 
       <SectionCard title="Input Source">
         <Pressable
           style={[
             styles.sourceButton,
-            inputSource === 'sample' &&
+
+            inputSource ===
+              'sample' &&
               styles.sourceButtonActive,
           ]}
-          onPress={selectSampleSource}
+          onPress={
+            selectSampleSource
+          }
         >
           <Text
             style={
-              inputSource === 'sample'
+              inputSource ===
+              'sample'
                 ? styles.sourceButtonActiveText
                 : styles.sourceButtonText
             }
           >
-            MIT-BIH Sample
+            Local ECG Sample
           </Text>
         </Pressable>
 
         <Pressable
           style={[
             styles.sourceButton,
-            inputSource === 'upload' &&
+
+            inputSource ===
+              'upload' &&
               styles.sourceButtonActive,
           ]}
           onPress={selectECGFile}
         >
           <Text
             style={
-              inputSource === 'upload'
+              inputSource ===
+              'upload'
                 ? styles.sourceButtonActiveText
                 : styles.sourceButtonText
             }
@@ -277,19 +422,60 @@ export default function ECGInputScreen() {
           </Text>
         </Pressable>
 
-        {inputSource === 'upload' &&
+        {inputSource ===
+          'upload' &&
           (selectedFile ? (
-            <View style={styles.fileBox}>
-              <Text style={styles.fileName}>
-                {selectedFile.name}
+            <View
+              style={styles.fileBox}
+            >
+              <Text
+                style={
+                  styles.fileName
+                }
+              >
+                {
+                  selectedFile.name
+                }
               </Text>
 
-              <Text style={styles.fileDetails}>
-                {selectedFile.samples.length} samples
+              <Text
+                style={
+                  styles.fileDetails
+                }
+              >
+                {
+                  selectedFile
+                    .samples.length
+                }{' '}
+                samples
+              </Text>
+
+              <Text
+                style={
+                  styles.fileDetails
+                }
+              >
+                {
+                  uploadedBeatCount
+                }{' '}
+                complete heartbeat
+                {uploadedBeatCount ===
+                1
+                  ? ''
+                  : 's'}{' '}
+                ×{' '}
+                {
+                  MODEL_INPUT_SAMPLES
+                }{' '}
+                samples
               </Text>
             </View>
           ) : (
-            <Text style={styles.uploadMessage}>
+            <Text
+              style={
+                styles.uploadMessage
+              }
+            >
               No ECG file selected
             </Text>
           ))}
@@ -299,7 +485,11 @@ export default function ECGInputScreen() {
         style={styles.primaryButton}
         onPress={loadECG}
       >
-        <Text style={styles.primaryButtonText}>
+        <Text
+          style={
+            styles.primaryButtonText
+          }
+        >
           Load ECG
         </Text>
       </Pressable>
@@ -307,133 +497,171 @@ export default function ECGInputScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#64748b',
-    marginTop: 4,
-    marginBottom: 20,
-  },
-  selectedBox: {
-    backgroundColor: '#eff6ff',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-  },
-  selectedTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#2563eb',
-  },
-  selectedSubtitle: {
-    color: '#64748b',
-    marginTop: 4,
-  },
-  fieldLabel: {
-    color: '#64748b',
-    marginBottom: 10,
-  },
-  recordSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  arrowButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#eff6ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  arrowText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#2563eb',
-    lineHeight: 28,
-  },
-  recordBox: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  recordValue: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
-  recordLabel: {
-    color: '#64748b',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  sourceButton: {
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    alignItems: 'center',
-  },
-  sourceButtonActive: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#2563eb',
-  },
-  sourceButtonText: {
-    color: '#334155',
-    fontWeight: '600',
-  },
-  sourceButtonActiveText: {
-    color: '#2563eb',
-    fontWeight: '700',
-  },
-  uploadMessage: {
-    color: '#dc2626',
-    fontSize: 13,
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  fileBox: {
-    backgroundColor: '#f0fdf4',
-    borderWidth: 1,
-    borderColor: '#86efac',
-    borderRadius: 10,
-    padding: 12,
-  },
-  fileName: {
-    color: '#166534',
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  fileDetails: {
-    color: '#15803d',
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  primaryButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
+const styles =
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: '#f8fafc',
+    },
+
+    content: {
+      padding: 20,
+      paddingBottom: 40,
+    },
+
+    title: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: '#0f172a',
+    },
+
+    subtitle: {
+      fontSize: 14,
+      color: '#64748b',
+      marginTop: 4,
+      marginBottom: 20,
+    },
+
+    selectedBox: {
+      backgroundColor: '#eff6ff',
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 16,
+    },
+
+    selectedTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: '#2563eb',
+    },
+
+    selectedSubtitle: {
+      color: '#64748b',
+      marginTop: 4,
+    },
+
+    fieldLabel: {
+      color: '#64748b',
+      marginBottom: 10,
+    },
+
+    recordSelector: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent:
+        'space-between',
+      marginBottom: 20,
+    },
+
+    arrowButton: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: '#eff6ff',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    arrowText: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: '#2563eb',
+      lineHeight: 28,
+    },
+
+    recordBox: {
+      flex: 1,
+      alignItems: 'center',
+    },
+
+    recordValue: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: '#0f172a',
+    },
+
+    recordLabel: {
+      color: '#64748b',
+      fontSize: 12,
+      marginTop: 2,
+    },
+
+    mockNotice: {
+      marginTop: 12,
+      backgroundColor: '#fff7ed',
+      borderRadius: 10,
+      padding: 12,
+    },
+
+    mockNoticeText: {
+      color: '#9a3412',
+      fontSize: 12,
+      lineHeight: 18,
+    },
+
+    sourceButton: {
+      borderWidth: 1,
+      borderColor: '#cbd5e1',
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 10,
+      alignItems: 'center',
+    },
+
+    sourceButtonActive: {
+      backgroundColor: '#eff6ff',
+      borderColor: '#2563eb',
+    },
+
+    sourceButtonText: {
+      color: '#334155',
+      fontWeight: '600',
+    },
+
+    sourceButtonActiveText: {
+      color: '#2563eb',
+      fontWeight: '700',
+    },
+
+    uploadMessage: {
+      color: '#dc2626',
+      fontSize: 13,
+      textAlign: 'center',
+      marginTop: 2,
+    },
+
+    fileBox: {
+      backgroundColor: '#f0fdf4',
+      borderWidth: 1,
+      borderColor: '#86efac',
+      borderRadius: 10,
+      padding: 12,
+    },
+
+    fileName: {
+      color: '#166534',
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+
+    fileDetails: {
+      color: '#15803d',
+      fontSize: 12,
+      textAlign: 'center',
+      marginTop: 4,
+    },
+
+    primaryButton: {
+      backgroundColor: '#2563eb',
+      borderRadius: 14,
+      paddingVertical: 16,
+      alignItems: 'center',
+      marginTop: 4,
+    },
+
+    primaryButtonText: {
+      color: '#ffffff',
+      fontSize: 16,
+      fontWeight: '700',
+    },
+  });

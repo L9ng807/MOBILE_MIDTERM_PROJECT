@@ -1,10 +1,12 @@
-import {
+import type {
   ECGClass,
   ECGRecordData,
 } from '../types/ecg';
 
-const BEAT_SIZE = 80;
-const TOTAL_SAMPLES = 320;
+import {
+  MIT_BIH_SAMPLING_RATE,
+  MODEL_INPUT_SAMPLES,
+} from '../types/ecg';
 
 function gaussian(
   x: number,
@@ -21,26 +23,44 @@ function gaussian(
   );
 }
 
-function generateNormalBeat(position: number) {
+function generateNBeat(position: number) {
   let value = 0;
 
-  value += gaussian(position, 14, 4, 6);
-  value += gaussian(position, 30, 1.5, -12);
-  value += gaussian(position, 33, 1.2, 65);
-  value += gaussian(position, 36, 1.5, -20);
-  value += gaussian(position, 55, 7, 15);
+  value += gaussian(position, 85, 12, 0.12);
+  value += gaussian(position, 145, 5, -0.18);
+  value += gaussian(position, 155, 4, 1.0);
+  value += gaussian(position, 166, 6, -0.3);
+  value += gaussian(position, 220, 20, 0.28);
 
   return value;
 }
 
-function generateSBeat(position: number) {
+function generateLBeat(position: number) {
   let value = 0;
 
-  value += gaussian(position, 10, 3, 4);
-  value += gaussian(position, 26, 1.4, -8);
-  value += gaussian(position, 29, 1.1, 55);
-  value += gaussian(position, 32, 1.3, -16);
-  value += gaussian(position, 48, 6, 12);
+  value += gaussian(position, 82, 13, 0.1);
+
+  value += gaussian(position, 142, 8, -0.12);
+  value += gaussian(position, 158, 10, 0.72);
+  value += gaussian(position, 181, 13, 0.55);
+  value += gaussian(position, 202, 12, -0.35);
+
+  value += gaussian(position, 240, 24, 0.18);
+
+  return value;
+}
+
+function generateRBeat(position: number) {
+  let value = 0;
+
+  value += gaussian(position, 80, 12, 0.1);
+
+  value += gaussian(position, 144, 6, -0.16);
+  value += gaussian(position, 157, 6, 0.75);
+  value += gaussian(position, 176, 7, 0.92);
+  value += gaussian(position, 194, 9, -0.45);
+
+  value += gaussian(position, 235, 21, 0.2);
 
   return value;
 }
@@ -48,51 +68,67 @@ function generateSBeat(position: number) {
 function generateVBeat(position: number) {
   let value = 0;
 
-  value += gaussian(position, 29, 5, 50);
-  value += gaussian(position, 38, 6, -38);
-  value += gaussian(position, 58, 8, 10);
+  value += gaussian(position, 145, 19, 0.82);
+  value += gaussian(position, 180, 22, -0.72);
+  value += gaussian(position, 235, 24, 0.18);
 
   return value;
 }
 
-function generateFBeat(position: number) {
-  const normal = generateNormalBeat(position);
-  const ventricular = generateVBeat(position);
+function generateABeat(position: number) {
+  let value = 0;
 
-  return normal * 0.55 + ventricular * 0.45;
+  value += gaussian(position, 62, 11, 0.2);
+
+  value += gaussian(position, 132, 5, -0.14);
+  value += gaussian(position, 142, 4, 0.92);
+  value += gaussian(position, 153, 6, -0.28);
+
+  value += gaussian(position, 205, 18, 0.24);
+
+  return value;
 }
 
-function generateECG(
+function generateHeartbeat(
   label: ECGClass,
   seed: number,
 ): number[] {
   const samples: number[] = [];
 
-  for (let i = 0; i < TOTAL_SAMPLES; i++) {
-    const position = i % BEAT_SIZE;
-
+  for (
+    let i = 0;
+    i < MODEL_INPUT_SAMPLES;
+    i += 1
+  ) {
     let value = 0;
 
     if (label === 'N') {
-      value = generateNormalBeat(position);
-    }
-
-    if (label === 'S') {
-      value = generateSBeat(position);
-    }
-
-    if (label === 'V') {
-      value = generateVBeat(position);
-    }
-
-    if (label === 'F') {
-      value = generateFBeat(position);
+      value = generateNBeat(i);
+    } else if (label === 'L') {
+      value = generateLBeat(i);
+    } else if (label === 'R') {
+      value = generateRBeat(i);
+    } else if (label === 'V') {
+      value = generateVBeat(i);
+    } else if (label === 'A') {
+      value = generateABeat(i);
     }
 
     const baseline =
-      Math.sin((i + seed) / 45) * 1.5;
+      Math.sin((i + seed) / 45) * 0.018;
 
-    samples.push(value + baseline);
+    const secondaryBaseline =
+      Math.sin((i + seed * 2) / 19) * 0.006;
+
+    samples.push(
+      Number(
+        (
+          value +
+          baseline +
+          secondaryBaseline
+        ).toFixed(6),
+      ),
+    );
   }
 
   return samples;
@@ -101,45 +137,45 @@ function generateECG(
 export const ecgRecords: ECGRecordData[] = [
   {
     recordId: '100',
-    samplingRate: 360,
+    samplingRate: MIT_BIH_SAMPLING_RATE,
     heartRate: 72,
     label: 'N',
-    samples: generateECG('N', 0),
+    samples: generateHeartbeat('N', 0),
   },
   {
     recordId: '101',
-    samplingRate: 360,
-    heartRate: 75,
-    label: 'N',
-    samples: generateECG('N', 8),
+    samplingRate: MIT_BIH_SAMPLING_RATE,
+    heartRate: 70,
+    label: 'L',
+    samples: generateHeartbeat('L', 8),
   },
   {
     recordId: '102',
-    samplingRate: 360,
-    heartRate: 96,
-    label: 'S',
-    samples: generateECG('S', 15),
+    samplingRate: MIT_BIH_SAMPLING_RATE,
+    heartRate: 74,
+    label: 'R',
+    samples: generateHeartbeat('R', 15),
   },
   {
     recordId: '103',
-    samplingRate: 360,
+    samplingRate: MIT_BIH_SAMPLING_RATE,
     heartRate: 88,
     label: 'V',
-    samples: generateECG('V', 22),
+    samples: generateHeartbeat('V', 22),
   },
   {
     recordId: '104',
-    samplingRate: 360,
-    heartRate: 69,
-    label: 'N',
-    samples: generateECG('N', 30),
+    samplingRate: MIT_BIH_SAMPLING_RATE,
+    heartRate: 92,
+    label: 'A',
+    samples: generateHeartbeat('A', 30),
   },
   {
     recordId: '105',
-    samplingRate: 360,
-    heartRate: 84,
-    label: 'F',
-    samples: generateECG('F', 40),
+    samplingRate: MIT_BIH_SAMPLING_RATE,
+    heartRate: 68,
+    label: 'N',
+    samples: generateHeartbeat('N', 40),
   },
 ];
 
