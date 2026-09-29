@@ -1,4 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+
+import { createScaledSheet } from '../utils/responsive';
 
 interface StatusBadgeProps {
   text: string;
@@ -21,6 +23,9 @@ export default function StatusBadge({
       />
 
       <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
         style={[
           styles.text,
           {
@@ -34,11 +39,13 @@ export default function StatusBadge({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createScaledSheet({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexShrink: 1,
+    maxWidth: '58%',
   },
   dot: {
     width: 10,
@@ -48,5 +55,6 @@ const styles = StyleSheet.create({
   text: {
     fontWeight: '600',
     fontSize: 15,
+    flexShrink: 1,
   },
 });
