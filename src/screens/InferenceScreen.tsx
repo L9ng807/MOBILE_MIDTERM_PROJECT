@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -52,6 +51,8 @@ import type {
 import type {
   RootTabParamList,
 } from '../types/navigation';
+
+import { createScaledSheet } from '../utils/responsive';
 
 type InferenceRouteProp =
   RouteProp<
@@ -973,7 +974,7 @@ export default function InferenceScreen() {
 }
 
 const styles =
-  StyleSheet.create({
+  createScaledSheet({
     container: {
       flex: 1,
       backgroundColor:

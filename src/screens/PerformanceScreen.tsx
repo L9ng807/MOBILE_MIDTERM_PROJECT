@@ -9,7 +9,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -42,6 +41,8 @@ import {
   ECG_CLASS_NAMES,
   MODEL_INPUT_SAMPLES,
 } from '../types/ecg';
+
+import { createScaledSheet } from '../utils/responsive';
 
 export default function PerformanceScreen() {
   const selectedECG =
@@ -822,7 +823,7 @@ export default function PerformanceScreen() {
 }
 
 const styles =
-  StyleSheet.create({
+  createScaledSheet({
     container: {
       flex: 1,
 

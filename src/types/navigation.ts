@@ -55,5 +55,12 @@ export type RootTabParamList = {
 
   Performance: undefined;
 
+  /**
+   * Person 3 — hardware-aware layer:
+   * FPGA Monitor (PYNQ-Z2 status,
+   * deployment, resource utilization).
+   */
+  Devices: undefined;
+
   Settings: undefined;
 };

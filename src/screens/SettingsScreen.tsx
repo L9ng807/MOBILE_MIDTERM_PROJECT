@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -41,6 +40,8 @@ import {
   isValidBackendUrl,
   normalizeBaseUrl,
 } from '../services/apiClient';
+
+import { createScaledSheet } from '../utils/responsive';
 
 type TestState =
   | 'idle'
@@ -760,7 +761,7 @@ export default function SettingsScreen() {
 }
 
 const styles =
-  StyleSheet.create({
+  createScaledSheet({
     container: {
       flex: 1,
       backgroundColor:

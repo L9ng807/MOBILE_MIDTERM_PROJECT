@@ -9,7 +9,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -56,6 +55,8 @@ import {
   getCompleteHeartbeatCount,
   parseECGSamples,
 } from '../utils/ecgCsv';
+
+import { createScaledSheet } from '../utils/responsive';
 
 type ECGInputNavigationProp =
   NativeStackNavigationProp<
@@ -846,7 +847,7 @@ export default function ECGInputScreen() {
 }
 
 const styles =
-  StyleSheet.create({
+  createScaledSheet({
     container: {
       flex: 1,
 

@@ -8,7 +8,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -35,6 +34,8 @@ import {
   MIT_BIH_SAMPLING_RATE,
   MODEL_INPUT_SAMPLES,
 } from '../types/ecg';
+
+import { createScaledSheet } from '../utils/responsive';
 
 export default function DashboardScreen() {
   const backendUrl =
@@ -551,7 +552,7 @@ export default function DashboardScreen() {
 }
 
 const styles =
-  StyleSheet.create({
+  createScaledSheet({
     container: {
       flex: 1,
       backgroundColor:
@@ -582,6 +583,7 @@ const styles =
         'space-between',
       alignItems: 'center',
       marginBottom: 10,
+      gap: 8,
     },
 
     label: {
@@ -593,6 +595,7 @@ const styles =
       flexDirection: 'row',
       justifyContent:
         'space-between',
+      gap: 4,
     },
 
     infoText: {

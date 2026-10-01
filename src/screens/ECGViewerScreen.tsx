@@ -8,7 +8,6 @@ import {
 import {
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -62,6 +61,8 @@ import type {
   ECGStackParamList,
   RootTabParamList,
 } from '../types/navigation';
+
+import { createScaledSheet } from '../utils/responsive';
 
 type ECGViewerRouteProp =
   RouteProp<
@@ -856,7 +857,7 @@ export default function ECGViewerScreen() {
 }
 
 const styles =
-  StyleSheet.create({
+  createScaledSheet({
     container: {
       flex: 1,
       backgroundColor:

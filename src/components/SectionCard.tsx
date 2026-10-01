@@ -1,5 +1,7 @@
 import { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+
+import { createScaledSheet } from '../utils/responsive';
 
 interface SectionCardProps {
   title: string;
@@ -12,13 +14,20 @@ export default function SectionCard({
 }: SectionCardProps) {
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>{title}</Text>
+      <Text
+        style={styles.title}
+        numberOfLines={2}
+        adjustsFontSizeToFit
+        minimumFontScale={0.75}
+      >
+        {title}
+      </Text>
       {children}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createScaledSheet({
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
